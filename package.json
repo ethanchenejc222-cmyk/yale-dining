@@ -1,0 +1,20 @@
+{
+  "name": "yale-dining",
+  "version": "1.0.0",
+  "description": "Yale Dining menu aggregator — proxies the Nutrislice API",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

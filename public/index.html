@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00356b">
+<title>My Yale</title>
+<!-- Favicon: Yale Y on blue -->
+<!-- Favicons & PWA -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2300356b'/><text x='50%25' y='22' text-anchor='middle' font-family='Georgia,serif' font-weight='bold' font-size='20' fill='white'>Y</text></svg>">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="My Yale">
+<meta name="application-name" content="My Yale">
+<style>
+:root{
+  --yale-blue:#00356b;--yale-mid:#286dc0;
+  --bg:#f2f2f7;--card:#fff;
+  --t1:#1c1c1e;--t2:#6c6c70;--t3:#aeaeb2;
+  --sep:rgba(60,60,67,.12);
+  --bf:#ff9500;--dn:#5e5ce6;
+  --red:#dc2626;--amber:#d97706;--green:#16a34a;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{overscroll-behavior:none;height:100%;scrollbar-width:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar,.frame::-webkit-scrollbar,
+.content::-webkit-scrollbar,.settings-panel::-webkit-scrollbar,.map-panel::-webkit-scrollbar{display:none}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased;user-select:none}
+.frame{max-width:390px;margin:0 auto;min-height:100vh;background:var(--bg)}
+
+/* ── Nav – compact ── */
+.nav{background:var(--yale-blue);padding:14px 16px 12px;position:sticky;top:0;z-index:99;padding-top:env(safe-area-inset-top,14px)}
+.nav-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.nav-title{font-size:24px;font-weight:700;color:#fff;font-family:Georgia,serif;line-height:1}
+.refresh-btn{background:rgba(255,255,255,.14);border:none;border-radius:50%;width:32px;height:32px;color:rgba(255,255,255,.9);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.refresh-btn:active{background:rgba(255,255,255,.28)}
+.refresh-btn.spinning{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Date chips */
+.date-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.date-row::-webkit-scrollbar{display:none}
+.dchip{display:flex;flex-direction:column;align-items:center;min-width:42px;padding:6px 4px;border-radius:11px;border:none;background:transparent;color:rgba(255,255,255,.6);cursor:pointer;flex-shrink:0;transition:all .18s}
+.dchip.active{background:#fff;color:var(--yale-blue);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.dchip .dl{font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:2px}
+.dchip .dn{font-size:16px;font-weight:700;line-height:1}
+.dchip .dot{width:4px;height:4px;border-radius:50%;background:var(--bf);margin-top:3px;opacity:0}
+.dchip.today .dot{opacity:1}
+.dchip.active .dot{background:var(--yale-blue)}
+
+/* Meal toggle */
+.meal-bar{display:flex;background:rgba(118,118,128,.12);border-radius:9px;padding:2px;margin:12px 14px 0}
+.mbtn{flex:1;border:none;background:transparent;padding:6px 2px;border-radius:7px;font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .18s;white-space:nowrap}
+.mbtn.active{background:#fff;color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* Filter scroll */
+.filter-scroll{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding:10px 14px 0}
+.filter-scroll::-webkit-scrollbar{display:none}
+.fchip{padding:4px 12px;border-radius:18px;border:1.5px solid var(--sep);background:var(--card);font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.fchip.active{background:var(--yale-blue);border-color:var(--yale-blue);color:#fff}
+.fchip.hall-chip{border-color:rgba(0,53,107,.25);color:var(--yale-blue);background:rgba(0,53,107,.06)}
+.fchip.hall-chip.showing-all{background:var(--yale-blue);border-color:var(--yale-blue);color:#fff}
+
+/* Content */
+.content{padding:12px 12px 100px;overflow-y:auto;scrollbar-width:none}
+.content::-webkit-scrollbar{display:none}
+
+/* Announcements */
+.announcements{margin-bottom:10px}
+.announce-card{border-radius:12px;padding:11px 13px;margin-bottom:7px}
+.announce-card.info{background:#fffbeb;border:1px solid #fde68a}
+.announce-card.urgent{background:#fef2f2;border:1px solid #fecaca}
+.announce-card.event-special{background:#eff6ff;border:1px solid #bfdbfe}
+.announce-hd{display:flex;align-items:flex-start;gap:8px}
+.announce-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.announce-label{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:2px}
+.info .announce-label{color:var(--amber)}
+.urgent .announce-label{color:var(--red)}
+.event-special .announce-label{color:var(--yale-mid)}
+.announce-text{font-size:13px;line-height:1.45;color:var(--t1)}
+
+/* Hall cards */
+.hcard{background:var(--card);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);animation:su .28s ease forwards;opacity:0;transform:translateY(6px)}
+@keyframes su{to{opacity:1;transform:none}}
+.hcard.closed-hall{opacity:.5}
+.hhead{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.hname-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hname{font-size:15px;font-weight:600}
+.hstar{font-size:10px;color:var(--yale-blue);opacity:0}
+.hcard.fav .hstar{opacity:1}
+.closed-badge{font-size:10px;font-weight:700;background:#fee2e2;color:var(--red);border-radius:5px;padding:2px 6px}
+.event-badge{font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;border-radius:5px;padding:2px 6px}
+.hstatus{font-size:11.5px;margin-top:2px;display:flex;align-items:center;gap:5px}
+.hstatus-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-open{background:var(--green)}
+.dot-closed{background:var(--red)}
+.dot-soon{background:var(--amber)}
+.chev{color:var(--t3);font-size:18px;transition:transform .22s;flex-shrink:0;margin-left:6px}
+.hcard.open .chev{transform:rotate(90deg)}
+.hhead-actions{display:flex;align-items:center;gap:4px}
+.map-btn{background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;opacity:.55}
+.map-btn:active{opacity:1}
+.mitems{display:none}
+.hcard.open .mitems{display:block}
+.msec{padding:8px 14px 4px;border-top:1px solid var(--sep)}
+.msec-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.mitem{display:flex;align-items:flex-start;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.03);gap:6px}
+.mitem:last-child{border-bottom:none}
+.mname{font-size:13px;line-height:1.35;flex:1}
+.mitem-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.mcal{font-size:10.5px;color:#9ca3af;white-space:nowrap}
+.tags{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end}
+.tag{font-size:9px;font-weight:700;padding:2px 4px;border-radius:4px}
+.tv{background:#e8f9ed;color:#1a7f37}.tvg{background:#e5f4e3;color:#2d7a2b}
+.tgf{background:#fef3e2;color:#9a5700}.th{background:#e8f0fe;color:#1967d2}
+.meal-label{display:inline-flex;align-items:center;padding:3px 9px;border-radius:7px;font-size:11px;font-weight:600;margin:8px 14px 4px}
+.ml-b{background:rgba(255,149,0,.12);color:var(--bf)}
+.ml-l{background:rgba(52,199,89,.12);color:#1a7f37}
+.ml-d{background:rgba(94,92,230,.12);color:var(--dn)}
+
+/* Venue & Slifka cards */
+.hcard.venue-card .hhead,.hcard.slifka-card .hhead{cursor:pointer}
+.venue-hours-row{font-size:12px;color:var(--t2);padding:9px 14px 6px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--sep)}
+.venue-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.venue-dot.open{background:var(--green)}.venue-dot.closed{background:var(--red)}
+.venue-desc{font-size:12.5px;color:var(--t2);padding:4px 14px 10px;line-height:1.5}
+.venue-pdf-links{padding:4px 12px 10px;display:flex;flex-direction:column;gap:7px}
+.venue-pdf-link{display:flex;align-items:center;gap:8px;padding:9px 11px;background:rgba(0,53,107,.05);border-radius:9px;text-decoration:none;color:var(--yale-blue);font-size:13px;font-weight:500;border:1px solid rgba(0,53,107,.1)}
+.venue-pdf-link:active{background:rgba(0,53,107,.12)}
+
+/* Slifka images */
+.slifka-week{font-size:11.5px;color:var(--t2);padding:8px 14px 4px;border-top:1px solid var(--sep)}
+.slifka-img-label{font-size:9.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);padding:8px 14px 3px}
+.slifka-img-wrap{padding:0 10px 10px}
+.slifka-img-wrap img{width:100%;border-radius:8px;display:block;max-height:600px;object-fit:contain}
+.slifka-err{padding:11px 14px}
+.slifka-err-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:3px}
+.slifka-err-detail{font-size:11.5px;color:var(--t2);line-height:1.5;margin-bottom:6px}
+.slifka-fallback{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--yale-mid);font-weight:500;text-decoration:none}
+
+/* Loading */
+.loading-wrap{display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:12px}
+.spinner{width:34px;height:34px;border:3px solid var(--sep);border-top-color:var(--yale-blue);border-radius:50%;animation:spin .75s linear infinite}
+.load-title{font-size:14px;font-weight:600}
+.load-sub{font-size:12.5px;color:var(--t2);text-align:center}
+.pbar-wrap{width:180px;height:4px;background:var(--sep);border-radius:4px;overflow:hidden}
+.pbar-fill{height:100%;background:var(--yale-blue);border-radius:4px;transition:width .4s ease}
+.pbar-msg{font-size:10.5px;color:var(--t3)}
+.closed-row{padding:9px 14px;font-size:12.5px;color:var(--t3);font-style:italic}
+
+/* Tabs */
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(390px,100vw);background:rgba(249,249,249,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--sep);padding:8px 0 max(20px,env(safe-area-inset-bottom));display:flex;z-index:100}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;padding:0}
+.tab-ico{font-size:21px}
+.tab-lbl{font-size:9px;font-weight:500;color:var(--t3)}
+.tab.active .tab-lbl{color:var(--yale-blue);font-weight:700}
+
+/* Settings & Map panels */
+.settings-panel,.map-panel{display:none;overflow-y:auto}
+.settings-panel{padding:12px 12px 100px}
+.map-panel{padding-bottom:100px}
+.settings-panel.active,.map-panel.active{display:block}
+.content.hidden,.meal-bar.hidden,.filter-scroll.hidden{display:none}
+
+/* Library/Map nav bar inside panels */
+.lib-nav-bar{background:var(--yale-blue);padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;padding-top:env(safe-area-inset-top,14px);position:sticky;top:0;z-index:10}
+.map-panel .map-hall-card,.map-panel .lib-content-inner,.lib-panel-body{padding:0 12px}
+.sgroup{background:var(--card);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sgroup-title{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);padding:13px 15px 5px}
+.sgroup-note{font-size:11.5px;color:var(--t2);padding:0 15px 9px;line-height:1.4}
+
+/* Favorites drag list */
+.fav-list{border-top:1px solid var(--sep)}
+.fav-item{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--sep);background:var(--card);cursor:grab;transition:background .1s;-webkit-user-select:none}
+.fav-item:last-child{border-bottom:none}
+.fav-item.dragging{opacity:.35;background:#f0f4ff}
+.fav-item.drag-over{border-top:2px solid var(--yale-blue)}
+.drag-handle{color:var(--t3);font-size:15px;flex-shrink:0;padding:0 2px;cursor:grab;touch-action:none}
+.fav-item-name{font-size:13.5px;flex:1}
+.fav-remove{background:none;border:none;color:var(--red);font-size:17px;cursor:pointer;padding:0 3px;line-height:1;flex-shrink:0}
+.add-hall-scroll{display:flex;flex-wrap:wrap;gap:7px;padding:9px 13px 13px}
+.add-hall-btn{padding:5px 11px;border-radius:20px;border:1.5px solid var(--sep);background:var(--bg);font-size:12px;font-weight:500;color:var(--t2);cursor:pointer}
+.add-hall-btn:active{background:var(--yale-blue);color:#fff;border-color:var(--yale-blue)}
+.radio-grid{display:flex;flex-wrap:wrap;gap:7px;padding:4px 15px 13px}
+.rpill{padding:5px 13px;border-radius:20px;border:1.5px solid var(--sep);font-size:12.5px;font-weight:500;color:var(--t2);cursor:pointer;background:var(--bg)}
+.rpill.sel{background:var(--yale-blue);border-color:var(--yale-blue);color:#fff}
+
+/* Category toggles */
+.cat-row{display:flex;align-items:center;justify-content:space-between;padding:9px 15px;border-top:1px solid var(--sep)}
+.cat-row.cat-group-hdr{background:#f7f7f9;padding:7px 15px 4px}
+.cat-group-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--t3)}
+.cat-label{font-size:13.5px;color:var(--t1)}
+.cat-toggle{position:relative;width:42px;height:25px;flex-shrink:0}
+.cat-toggle input{opacity:0;width:0;height:0;position:absolute}
+.cat-track{position:absolute;inset:0;border-radius:25px;background:#e5e5ea;transition:background .2s;cursor:pointer}
+.cat-toggle input:checked+.cat-track{background:#34c759}
+.cat-track::after{content:'';position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.cat-toggle input:checked+.cat-track::after{transform:translateX(17px)}
+
+/* Hours table */
+.hours-group{border-top:1px solid var(--sep);padding:9px 15px 4px}
+.hours-group-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.hours-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0 3px}
+.hours-meal{font-size:13px;font-weight:500;flex-shrink:0}
+.hours-time{font-size:11.5px;color:var(--t2);text-align:right}
+.hours-link{display:block;font-size:12px;color:var(--yale-mid);padding:8px 15px 10px;text-decoration:none}
+
+.lib-subitems{margin-top:6px;padding-top:6px;border-top:1px solid var(--sep);display:flex;flex-direction:column;gap:4px}
+.lib-subitem{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+
+/* Map panel */
+.map-header{font-size:13px;color:var(--t2);padding:4px 2px 10px;line-height:1.4}
+.map-hall-card{background:var(--card);border-radius:12px;margin:0 12px 9px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.map-hall-name{font-size:14px;font-weight:600;margin-bottom:3px}
+.map-hall-status{font-size:11.5px;color:var(--t2);display:flex;align-items:center;gap:5px}
+.map-hall-addr{font-size:11px;color:var(--t3);margin-top:2px}
+.map-open-btn{padding:8px 10px;background:var(--yale-blue);color:#fff;border:none;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}
+.map-open-btn:active{opacity:.8}
+.map-open-btn-closed{background:var(--t3)}
+.map-hall-closed{opacity:.5}
+.map-section-label{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--t3);margin:14px 14px 7px}
+
+/* Onboarding */
+.onboard{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+.onboard::-webkit-scrollbar{display:none}
+.onboard.hidden{display:none}
+.ob-hero{background:var(--yale-blue);padding:env(safe-area-inset-top,24px) 24px 28px;text-align:center;flex-shrink:0}
+.ob-icon{font-size:44px;margin-bottom:10px}
+.ob-title{font-size:26px;font-weight:700;color:#fff;font-family:Georgia,serif;margin-bottom:6px}
+.ob-sub{font-size:14px;color:rgba(255,255,255,.7);line-height:1.5}
+.ob-body{padding:16px 14px 130px;flex:1}
+.ob-section{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin:16px 0 8px 2px}
+
+/* Add-to-homescreen banner */
+.ob-homescreen{background:linear-gradient(135deg,#00356b,#1a5699);border-radius:14px;padding:16px 16px 14px;margin-bottom:4px}
+.ob-hs-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:5px}
+.ob-hs-sub{font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.5;margin-bottom:10px}
+.ob-hs-steps{display:flex;flex-direction:column;gap:6px}
+.ob-hs-step{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(255,255,255,.9)}
+.ob-hs-step-ico{font-size:14px;flex-shrink:0;margin-top:1px}
+.ob-hs-platform{display:flex;gap:6px;margin-bottom:10px}
+.ob-hs-plat-btn{flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:rgba(255,255,255,.9);font-size:12px;font-weight:500;cursor:pointer;text-align:center}
+.ob-hs-plat-btn.sel{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.7)}
+
+.ob-halls{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:6px}
+.ob-hall{padding:10px 12px;border-radius:11px;border:1.5px solid var(--sep);background:var(--card);font-size:12.5px;font-weight:500;color:var(--t1);cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:7px}
+.ob-hall .ob-check{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--sep);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:transparent;transition:all .15s}
+.ob-hall.sel{border-color:var(--yale-blue);background:rgba(0,53,107,.05)}
+.ob-hall.sel .ob-check{background:var(--yale-blue);border-color:var(--yale-blue);color:#fff}
+.ob-filter-row{display:flex;flex-wrap:wrap;gap:7px}
+.ob-done{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(390px,100vw);padding:10px 14px max(22px,env(safe-area-inset-bottom));background:rgba(249,249,249,.96);backdrop-filter:blur(20px);border-top:1px solid var(--sep);z-index:201}
+.ob-btn{background:var(--yale-blue);color:#fff;border:none;border-radius:13px;padding:14px;font-size:15px;font-weight:600;width:100%;cursor:pointer}
+.ob-hint{font-size:11.5px;color:var(--t2);text-align:center;margin-top:7px}
+</style>
+</head>
+<body>
+<div class="frame">
+
+<!-- ── Onboarding ── -->
+<div class="onboard hidden" id="onboard">
+  <div class="ob-hero">
+    <div class="ob-icon">🍽️</div>
+    <div class="ob-title">My Yale</div>
+    <div class="ob-sub">Dining, libraries & more — all in one place.</div>
+  </div>
+  <div class="ob-body">
+
+    <!-- Add to homescreen — prominent -->
+    <div class="ob-section">📱 Add to Your Home Screen</div>
+    <div class="ob-homescreen">
+      <div class="ob-hs-title">Get the full app experience</div>
+      <div class="ob-hs-sub">Add this to your home screen so it opens like a native app — no browser bar, no searching for it.</div>
+      <div class="ob-hs-platform" id="obHsPlatform">
+        <button class="ob-hs-plat-btn sel" onclick="obSetPlatform('ios',this)">iPhone</button>
+        <button class="ob-hs-plat-btn" onclick="obSetPlatform('android',this)">Android</button>
+      </div>
+      <div class="ob-hs-steps" id="obHsSteps">
+        <div class="ob-hs-step"><span class="ob-hs-step-ico">1️⃣</span><span>Tap the <strong>Share</strong> button <strong>⎙</strong> at the bottom of Safari</span></div>
+        <div class="ob-hs-step"><span class="ob-hs-step-ico">2️⃣</span><span>Scroll down and tap <strong>"Add to Home Screen"</strong></span></div>
+        <div class="ob-hs-step"><span class="ob-hs-step-ico">3️⃣</span><span>Tap <strong>Add</strong> — done! 🎉</span></div>
+      </div>
+    </div>
+
+    <div class="ob-section">Your Dining Halls <span id="obCount" style="color:var(--yale-blue)"></span></div>
+    <div class="ob-halls" id="obHalls"></div>
+    <div class="ob-section">Default Dietary Filter</div>
+    <div class="ob-filter-row" id="obFilters"></div>
+  </div>
+  <div class="ob-done">
+    <button class="ob-btn" onclick="finishOnboarding()">Get Started</button>
+    <div class="ob-hint">You can change these anytime in Settings</div>
+  </div>
+</div>
+
+<!-- ── Main app ── -->
+<div class="nav">
+  <div class="nav-row">
+    <div class="nav-title">My Yale</div>
+    <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()">↻</button>
+  </div>
+  <div class="date-row" id="dateRow"></div>
+</div>
+
+<div class="meal-bar" id="mealBar">
+  <!-- rebuilt by buildMealBar() on each date change -->
+</div>
+
+<div class="filter-scroll" id="filterScroll">
+  <button class="fchip hall-chip" id="hallToggleChip" onclick="toggleHallView(this)" style="display:none">My Halls</button>
+</div>
+
+<div class="content" id="content">
+  <div class="loading-wrap"><div class="spinner"></div><div class="load-title">Yale Dining</div></div>
+</div>
+
+<!-- Settings Panel -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="sgroup">
+    <div class="sgroup-title">Favorite Dining Halls</div>
+    <div class="sgroup-note">Only favorites are fetched. Drag ☰ to reorder.</div>
+    <div class="fav-list" id="favList"></div>
+    <div class="sgroup-title" style="padding-top:8px">Add a Hall</div>
+    <div class="add-hall-scroll" id="addHallBtns"></div>
+  </div>
+  <div class="sgroup">
+    <div class="sgroup-title">Default Dietary Filter</div>
+    <div class="radio-grid" id="filterRadios"></div>
+  </div>
+  <div class="sgroup">
+    <div class="sgroup-title">Hidden Menu Categories</div>
+    <div class="sgroup-note">Toggle off to hide a section in menus. Drag to reorder within groups.</div>
+    <div id="catToggles"></div>
+  </div>
+  <div class="sgroup" id="hoursCard">
+    <div class="sgroup-title">Dining Hours</div>
+    <!-- Filled by JS -->
+    <a href="https://hospitality.yale.edu/when-where" target="_blank" class="hours-link">Full schedule at hospitality.yale.edu →</a>
+  </div>
+  <div class="sgroup">
+    <div class="sgroup-title">Add to Home Screen</div>
+    <div style="padding:4px 15px 12px">
+      <div style="font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:8px">
+        Open this app from your home screen for the best experience.
+      </div>
+      <div style="font-size:12px;color:var(--t1);font-weight:600;margin-bottom:4px">iPhone (Safari)</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:8px">Tap <strong>⎙ Share</strong> → <strong>Add to Home Screen</strong></div>
+      <div style="font-size:12px;color:var(--t1);font-weight:600;margin-bottom:4px">Android (Chrome)</div>
+      <div style="font-size:12px;color:var(--t2)">Tap <strong>⋮ Menu</strong> → <strong>Add to Home Screen</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- Map Panel -->
+<div class="map-panel" id="mapPanel">
+  <div class="lib-nav-bar">
+    <div class="nav-title" style="font-size:20px">Dining Map</div>
+    <select id="mapSort" onchange="onMapSortChange()" style="font-size:12px;padding:5px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-weight:500;cursor:pointer">
+      <option value="status">Open first</option>
+      <option value="closes">Closes latest</option>
+      <option value="closest">📍 Closest</option>
+      <option value="furthest">📍 Furthest</option>
+      <option value="abc">A → Z</option>
+    </select>
+  </div>
+  <div id="locStatus" style="font-size:12px;color:var(--t3);padding:8px 12px 0"></div>
+  <div id="mapContent" style="padding:8px 0"></div>
+</div>
+
+<!-- Library Panel -->
+<div class="map-panel" id="libPanel">
+  <div class="lib-nav-bar">
+    <div class="nav-title" style="font-size:20px">Libraries</div>
+    <select id="libSort" onchange="onLibSortChange()" style="font-size:12px;padding:5px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-weight:500;cursor:pointer">
+      <option value="status">Open first</option>
+      <option value="closes">Closes latest</option>
+      <option value="closest">📍 Closest</option>
+      <option value="furthest">📍 Furthest</option>
+      <option value="abc">A → Z</option>
+    </select>
+  </div>
+  <div id="libLocStatus" style="font-size:12px;color:var(--t3);padding:8px 12px 0"></div>
+  <div id="libContent" style="padding:8px 0"><div class="loading-wrap"><div class="spinner"></div></div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tabMenus" onclick="showTab('menus')"><span class="tab-ico">🍽️</span><span class="tab-lbl">Menus</span></button>
+  <button class="tab" id="tabMap" onclick="showTab('map')"><span class="tab-ico">🗺️</span><span class="tab-lbl">Dining</span></button>
+  <button class="tab" id="tabLib" onclick="showTab('lib')"><span class="tab-ico">📚</span><span class="tab-lbl">Libraries</span></button>
+  <button class="tab" id="tabSettings" onclick="showTab('settings')"><span class="tab-ico">⚙️</span><span class="tab-lbl">Settings</span></button>
+</div>
+</div><!-- .frame -->
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const API_BASE = '';
+
+// Dining hall data: slug, name, address for maps, coordinates
+const HALLS = [
+  {name:'Benjamin Franklin', slug:'benjamin-franklin-college', type:'residential', addr:'17 Prospect St, New Haven, CT', lat:41.3115, lng:-72.9285,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Berkeley',          slug:'berkeley-college',          type:'residential', addr:'205 Elm St, New Haven, CT', lat:41.3120, lng:-72.9295,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Branford',          slug:'branford-college',          type:'residential', addr:'74 High St, New Haven, CT', lat:41.3104, lng:-72.9277,
+    hours:{weekday:{breakfast:'7:30–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Davenport',         slug:'davenport-college',         type:'residential', addr:'248 York St, New Haven, CT', lat:41.3091, lng:-72.9303,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'12:00–2:00 PM',dinner:'5:30–8:00 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Ezra Stiles',       slug:'ezra-stiles-college',       type:'residential', addr:'Prospect & Sachem St, New Haven, CT', lat:41.3187, lng:-72.9267,
+    hours:{weekday:{breakfast:'7:30–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–8:00 PM'},weekend:{breakfast:'8:00–10:30 AM',brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Grace Hopper',      slug:'hopper-college',            type:'residential', addr:'Prospect & Sachem St, New Haven, CT', lat:41.3183, lng:-72.9260,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'11:30 AM–2:30 PM (Fri)',dinner:'5:00–7:30 PM'},weekend:{breakfast:'8:00–10:30 AM',brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Jonathan Edwards',  slug:'jonathan-edwards-college',  type:'residential', addr:'70 High St, New Haven, CT', lat:41.3100, lng:-72.9270,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'12:00–2:00 PM',dinner:'5:30–8:00 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Morse',             slug:'morse-college',             type:'residential', addr:'Prospect & Sachem St, New Haven, CT', lat:41.3185, lng:-72.9264,
+    hours:{weekday:{breakfast:'7:30–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–8:00 PM'},weekend:{breakfast:'8:00–10:30 AM',brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Pauli Murray',      slug:'pauli-murray-college',      type:'residential', addr:'100 Tower Pkwy, New Haven, CT', lat:41.3173, lng:-72.9283,
+    hours:{weekday:{breakfast:'7:30–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Pierson',           slug:'pierson-college',           type:'residential', addr:'254 York St, New Haven, CT', lat:41.3087, lng:-72.9305,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'12:00–2:00 PM',dinner:'5:30–8:00 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Saybrook',          slug:'saybrook-college',          type:'residential', addr:'245 Elm St, New Haven, CT', lat:41.3108, lng:-72.9297,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Silliman',          slug:'silliman-college',          type:'residential', addr:'1 Hillhouse Ave, New Haven, CT', lat:41.3150, lng:-72.9291,
+    hours:{weekday:{breakfast:'7:30–11:00 AM',lunch:'11:30 AM–1:30 PM',dinner:'5:00–7:30 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Timothy Dwight',    slug:'timothy-dwight-college',    type:'residential', addr:'345 Temple St, New Haven, CT', lat:41.3076, lng:-72.9295,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'12:00–2:00 PM',dinner:'5:30–8:00 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Trumbull',          slug:'trumbull-college',          type:'residential', addr:'74 High St, New Haven, CT', lat:41.3099, lng:-72.9272,
+    hours:{weekday:{breakfast:'8:00–11:00 AM',lunch:'12:00–2:00 PM',dinner:'5:30–8:00 PM'},weekend:{brunch:'11:00 AM–1:30 PM',dinner:'5:00–7:00 PM'}}},
+  {name:'Slifka Center',     slug:'slifka',                    type:'special',     addr:'80 Wall St, New Haven, CT', lat:41.3083, lng:-72.9255,
+    hours:{weekday:{lunch:'11:30 AM–1:30 PM',dinner:'5:00–8:45 PM (Tue–Thu)'},weekend:{}}},
+  {name:'Commons',           slug:'commons',                   type:'venue',       addr:'168 Grove St, New Haven, CT', lat:41.3118, lng:-72.9319,
+    hours:{weekday:{lunch:'11:00 AM–3:00 PM'},weekend:{}}},
+  {name:'Elm',               slug:'elm',                       type:'venue',       addr:'168 Grove St, New Haven, CT', lat:41.3118, lng:-72.9319,
+    hours:{weekday:{all:'8:00 AM–8:00 PM'},weekend:{}}},
+  {name:'The Ivy',           slug:'ivy',                       type:'venue',       addr:'168 Grove St, New Haven, CT', lat:41.3118, lng:-72.9319,
+    hours:{weekday:{},weekend:{}}},
+];
+
+// ── Category groups for hidden-categories UI ──────────────────────────────────
+// Each group = one draggable toggle row. Cats listed are ALL aliases that map to it.
+// Order here = default display order in menus.
+const CAT_GROUPS = [
+  // ── Entrees (shown first by default) ──────────────────────────────────────
+  {label:'Entrees & Mains',
+   cats:['LUNCH','DINNER','BREAKFAST','BREAKFAST EXPRESS',
+         'GREENS AND GRAINS LUNCH','GREENS AND GRAINS DINNER','GREENS AND GRAINS']},
+  // ── Grill (separate from entrees per request) ─────────────────────────────
+  {label:'Grill',
+   cats:['GRILL']},
+  // ── Soup & Salad (all variants merged) ────────────────────────────────────
+  {label:'Soup & Salad',
+   cats:['DAILY SOUP & SALAD','DAILY SOUP AND SALAD',
+         'GREENS AND GRAINS SOUP AND SALAD','SOUP','SALAD']},
+  // ── Additional / Sides ────────────────────────────────────────────────────
+  {label:'Additional Offerings',
+   cats:['ADDITIONAL ITEMS','ADDITIONAL','ACCOMPANIMENTS','ACCOMPANIMENT',
+         'FRESH FRUIT','DAILY PIZZA','PIZZA']},
+  // ── Dessert ───────────────────────────────────────────────────────────────
+  {label:'Dessert',
+   cats:['DESSERT','DINNER: DESSERT']},
+  // ── Ice Cream (separate) ──────────────────────────────────────────────────
+  {label:'Ice Cream',
+   cats:['ICE CREAM']},
+  // ── Beverages ─────────────────────────────────────────────────────────────
+  {label:'Beverages',
+   cats:['HOT BEVERAGES','HOT BEVERAGE EXPRESS','HOT BEVERAGE ACCOMPANIMENTS','COLD BEVERAGES']},
+  // ── Other ─────────────────────────────────────────────────────────────────
+  {label:'Smart Meals',
+   cats:['SMART MEALS']},
+  {label:'Gluten Friendly',
+   cats:['GLUTEN FRIENDLY']},
+  {label:'Cereal',
+   cats:['CEREAL']},
+  {label:'Condiments',
+   cats:['CONDIMENTS']},
+];
+
+// Default hidden: beverages, smart meals, gluten friendly, cereal, condiments, ice cream
+const DEFAULT_HIDDEN = [
+  'COLD BEVERAGES','HOT BEVERAGES','HOT BEVERAGE EXPRESS','HOT BEVERAGE ACCOMPANIMENTS',
+  'CONDIMENTS','CEREAL','SMART MEALS','GLUTEN FRIENDLY','ICE CREAM',
+];
+
+// Default group display order (entrees → grill → soup/salad → additional → dessert → ice cream → …)
+const DEFAULT_GROUP_ORDER = [
+  'Entrees & Mains','Grill','Soup & Salad','Additional Offerings',
+  'Dessert','Ice Cream','Beverages','Smart Meals','Gluten Friendly','Cereal','Condiments',
+];
+
+const SECTION_PRIORITY = {
+  breakfast:['BREAKFAST EXPRESS','BREAKFAST'],
+  lunch:    ['LUNCH','GREENS AND GRAINS LUNCH','GREENS AND GRAINS','GRILL'],
+  dinner:   ['DINNER','GREENS AND GRAINS DINNER','GREENS AND GRAINS','GRILL'],
+};
+
+// Client-side keyword map for closure parsing (mirrors server HALL_KW)
+const HALL_KW_CLIENT = {
+  'benjamin-franklin-college': ['benjamin franklin','franklin','bf'],
+  'berkeley-college':          ['berkeley'],
+  'branford-college':          ['branford'],
+  'davenport-college':         ['davenport'],
+  'ezra-stiles-college':       ['ezra stiles','stiles'],
+  'hopper-college':            ['hopper','grace hopper'],
+  'jonathan-edwards-college':  ['jonathan edwards','j.e.','je '],
+  'morse-college':             ['morse'],
+  'pauli-murray-college':      ['murray','pauli murray'],
+  'pierson-college':           ['pierson'],
+  'saybrook-college':          ['saybrook'],
+  'silliman-college':          ['silliman'],
+  'timothy-dwight-college':    ['timothy dwight','t.d.','t. d.'],
+  'trumbull-college':          ['trumbull'],
+};
+let selDate=new Date(), selMeal='all', selFilter='all';
+let showAllHalls=false;
+let menuData=null, slifkaData=null, venueData={}, closureData=null, loading=false;
+let seenCategories=new Set();
+
+let settings={
+  favorites:[],defaultFilter:'all',hiddenCats:[...DEFAULT_HIDDEN],
+  onboarded:false,catOrder:{},catGroupOrder:[...DEFAULT_GROUP_ORDER],
+};
+
+// ── LocalStorage menu data cache ──────────────────────────────────────────────
+// Key: 'menuCache:{YYYY-MM-DD}', value: {data, slifka, venues, closures, ts}
+function menuCacheKey(){ return `menuCache:${fmtDate(selDate)}`; }
+function saveMenuCache(){
+  try{localStorage.setItem(menuCacheKey(),JSON.stringify({data:menuData,slifka:slifkaData,venues:venueData,closures:closureData,ts:Date.now()}));}catch(e){}
+}
+function loadMenuCache(){
+  try{
+    const raw=localStorage.getItem(menuCacheKey());
+    if(!raw) return false;
+    const c=JSON.parse(raw);
+    const age=Date.now()-c.ts;
+    // Use cache if less than 2 hours old (menus don't change mid-day)
+    if(age<2*60*60*1000){
+      menuData=c.data; slifkaData=c.slifka; venueData=c.venues||{}; closureData=c.closures;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// ── Settings persistence ──────────────────────────────────────────────────────
+function persist(){try{localStorage.setItem('yaleDiningSettings',JSON.stringify(settings));}catch(e){}}
+function loadSettings(){
+  try{
+    const s=localStorage.getItem('yaleDiningSettings');
+    if(s){
+      const parsed=JSON.parse(s);
+      settings={favorites:[],defaultFilter:'all',hiddenCats:[...DEFAULT_HIDDEN],
+                onboarded:false,catOrder:{},catGroupOrder:[...DEFAULT_GROUP_ORDER],...parsed};
+      // Ensure any new groups from DEFAULT_GROUP_ORDER are appended if not already in saved order
+      const savedOrder=settings.catGroupOrder||[];
+      DEFAULT_GROUP_ORDER.forEach(g=>{ if(!savedOrder.includes(g)) savedOrder.push(g); });
+      settings.catGroupOrder=savedOrder;
+      // Safety: never hide base entree section names — these are the main meal sections
+      const NEVER_HIDE=['LUNCH','DINNER','BREAKFAST','BREAKFAST EXPRESS',
+                        'GREENS AND GRAINS','GREENS AND GRAINS LUNCH','GREENS AND GRAINS DINNER',
+                        'GRILL'];
+      settings.hiddenCats=settings.hiddenCats.filter(c=>!NEVER_HIDE.includes(c.toUpperCase()));
+    }
+  }catch(e){}
+  selFilter=settings.defaultFilter||'all';
+}
+
+function fmtDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+// ── Service worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+let obFavs=[], obFilter='all', obPlatform='ios';
+
+function obSetPlatform(p,btn){
+  obPlatform=p;
+  document.querySelectorAll('.ob-hs-plat-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const steps=document.getElementById('obHsSteps');
+  if(p==='ios'){
+    steps.innerHTML=`
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">1️⃣</span><span>Tap the <strong>Share</strong> button <strong>⎙</strong> at the bottom of Safari</span></div>
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">2️⃣</span><span>Scroll down and tap <strong>"Add to Home Screen"</strong></span></div>
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">3️⃣</span><span>Tap <strong>Add</strong> — the app icon appears on your home screen 🎉</span></div>`;
+  } else {
+    steps.innerHTML=`
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">1️⃣</span><span>Tap the <strong>⋮ three-dot menu</strong> at the top right in Chrome</span></div>
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">2️⃣</span><span>Tap <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong></span></div>
+      <div class="ob-hs-step"><span class="ob-hs-step-ico">3️⃣</span><span>Tap <strong>Add</strong> — done! 🎉</span></div>`;
+  }
+}
+
+function initOnboarding(){
+  const grid=document.getElementById('obHalls');
+  HALLS.filter(h=>h.type!=='venue'||h.slug!=='steep').forEach(h=>{
+    const btn=document.createElement('button');
+    btn.className='ob-hall';btn.dataset.slug=h.slug;
+    btn.innerHTML=`<div class="ob-check">✓</div><span>${h.name}</span>`;
+    btn.onclick=()=>{
+      const i=obFavs.indexOf(h.slug);
+      if(i===-1) obFavs.push(h.slug); else obFavs.splice(i,1);
+      btn.classList.toggle('sel',obFavs.includes(h.slug));
+      document.getElementById('obCount').textContent=obFavs.length?`(${obFavs.length})`:'';
+    };
+    grid.appendChild(btn);
+  });
+  const opts=[{v:'all',l:'All'},{v:'vegan',l:'🌱 Vegan'},{v:'vegetarian',l:'🥦 Vegetarian'},{v:'gluten-free',l:'🌾 Gluten-Free'},{v:'halal',l:'☪️ Halal'}];
+  const row=document.getElementById('obFilters');
+  opts.forEach(o=>{
+    const btn=document.createElement('button');btn.className=`rpill${o.v==='all'?' sel':''}`;btn.textContent=o.l;
+    btn.onclick=()=>{obFilter=o.v;document.querySelectorAll('#obFilters .rpill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');};
+    row.appendChild(btn);
+  });
+  document.getElementById('onboard').classList.remove('hidden');
+}
+
+function finishOnboarding(){
+  settings.favorites=obFavs.length?obFavs:[];
+  settings.defaultFilter=obFilter;settings.onboarded=true;
+  selFilter=settings.defaultFilter;persist();
+  document.getElementById('onboard').classList.add('hidden');
+  buildSettingsUI();updateFilterChips();updateHallChip();fetchAll();
+}
+
+// ── Settings UI ───────────────────────────────────────────────────────────────
+function buildSettingsUI(){buildFavList();buildAddButtons();buildFilterPills();buildCatToggles();buildHoursCard();}
+
+// ─ Drag helpers (fast response) ──────────────────────────────────────────────
+// Uses pointer events with a short delay, not HTML5 drag (which has 500ms delay on mobile).
+function makeDraggable(container, onReorder){
+  let dragging=null, dragOverEl=null, startY=0, startX=0, clone=null, moved=false;
+  container.addEventListener('pointerdown', e=>{
+    const handle=e.target.closest('.drag-handle');
+    if(!handle) return;
+    const item=handle.closest('[data-slug],[data-cat]');
+    if(!item) return;
+    e.preventDefault();
+    item.setPointerCapture(e.pointerId);
+    dragging=item; moved=false; startY=e.clientY; startX=e.clientX;
+    // Visual feedback immediately
+    setTimeout(()=>{if(dragging===item){item.classList.add('dragging');}},80);
+  });
+  container.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dy=Math.abs(e.clientY-startY), dx=Math.abs(e.clientX-startX);
+    if(dy>4||dx>4) moved=true;
+    if(!moved) return;
+    dragging.classList.add('dragging');
+    // Find element under finger
+    const under=document.elementFromPoint(e.clientX,e.clientY);
+    const overItem=under?.closest('[data-slug],[data-cat]');
+    if(overItem&&overItem!==dragging&&overItem.parentElement===dragging.parentElement){
+      if(dragOverEl) dragOverEl.classList.remove('drag-over');
+      dragOverEl=overItem;
+      dragOverEl.classList.add('drag-over');
+    }
+  });
+  container.addEventListener('pointerup', e=>{
+    if(!dragging) return;
+    dragging.classList.remove('dragging');
+    if(dragOverEl){
+      dragOverEl.classList.remove('drag-over');
+      onReorder(dragging,dragOverEl);
+    }
+    dragging=null; dragOverEl=null;
+  });
+}
+
+function buildFavList(){
+  const list=document.getElementById('favList');list.innerHTML='';
+  if(!settings.favorites.length){list.innerHTML='<div style="padding:11px 15px;font-size:12.5px;color:var(--t3);font-style:italic">No favorites yet</div>';return;}
+  settings.favorites.forEach(slug=>{
+    const hall=HALLS.find(h=>h.slug===slug);if(!hall)return;
+    const item=document.createElement('div');item.className='fav-item';item.dataset.slug=slug;
+    item.innerHTML=`<span class="drag-handle">☰</span><span class="fav-item-name">${hall.name}</span><button class="fav-remove" onclick="removeFav('${slug}')">×</button>`;
+    list.appendChild(item);
+  });
+  makeDraggable(list,(dragging,target)=>{
+    const from=dragging.dataset.slug, to=target.dataset.slug;
+    const fi=settings.favorites.indexOf(from),ti=settings.favorites.indexOf(to);
+    settings.favorites.splice(fi,1);settings.favorites.splice(ti,0,from);
+    persist();buildFavList();buildAddButtons();updateHallChip();if(menuData)safeRender();
+  });
+}
+
+function buildAddButtons(){
+  const wrap=document.getElementById('addHallBtns');wrap.innerHTML='';
+  const remaining=HALLS.filter(h=>h.slug!=='steep'&&!settings.favorites.includes(h.slug));
+  if(!remaining.length){wrap.innerHTML='<div style="font-size:12px;color:var(--t3);font-style:italic;padding:4px 2px">All halls added</div>';return;}
+  remaining.forEach(h=>{
+    const btn=document.createElement('button');btn.className='add-hall-btn';btn.textContent='+ '+h.name;
+    btn.onclick=()=>{settings.favorites.push(h.slug);persist();buildFavList();buildAddButtons();updateHallChip();if(menuData)safeRender();};
+    wrap.appendChild(btn);
+  });
+}
+
+function removeFav(slug){settings.favorites=settings.favorites.filter(s=>s!==slug);persist();buildFavList();buildAddButtons();updateHallChip();if(menuData)safeRender();}
+
+function buildFilterPills(){
+  const opts=[{v:'all',l:'All'},{v:'vegan',l:'🌱 Vegan'},{v:'vegetarian',l:'🥦 Vegetarian'},{v:'gluten-free',l:'🌾 Gluten-Free'},{v:'halal',l:'☪️ Halal'}];
+  const wrap=document.getElementById('filterRadios');wrap.innerHTML='';
+  opts.forEach(o=>{
+    const btn=document.createElement('button');btn.className=`rpill${settings.defaultFilter===o.v?' sel':''}`;btn.textContent=o.l;
+    btn.onclick=()=>{settings.defaultFilter=o.v;persist();document.querySelectorAll('.rpill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');selFilter=o.v;updateFilterChips();if(menuData)safeRender();};
+    wrap.appendChild(btn);
+  });
+}
+
+function buildCatToggles(){
+  const wrap=document.getElementById('catToggles');wrap.innerHTML='';
+  const hiddenSet=new Set(settings.hiddenCats);
+
+  // Build full group list: known groups + any extra seen categories
+  const allKnown=new Set(CAT_GROUPS.flatMap(g=>g.cats));
+  const extraCats=[...seenCategories].map(c=>c.toUpperCase()).filter(c=>!allKnown.has(c));
+  const allGroups=[...CAT_GROUPS];
+  if(extraCats.length){
+    allGroups.push({label:'Other Seen',cats:extraCats});
+  }
+
+  // Sort groups by saved order
+  const order=settings.catGroupOrder||[...DEFAULT_GROUP_ORDER];
+  const groups=[...allGroups].sort((a,b)=>{
+    const ai=order.indexOf(a.label),bi=order.indexOf(b.label);
+    return (ai===-1?999:ai)-(bi===-1?999:bi);
+  });
+
+  groups.forEach(grp=>{
+    const row=document.createElement('div');
+    row.className='cat-row';row.dataset.group=grp.label;
+    row.style.cssText='align-items:flex-start;padding:10px 15px;border-top:1px solid var(--sep);';
+
+    const allHidden=grp.cats.every(c=>hiddenSet.has(c));
+    const id=`cg-${grp.label.replace(/[^a-z0-9]/gi,'-')}`;
+
+    // Show the category names as small subtitle (clean up names)
+    const subNames=grp.cats
+      .map(c=>c.charAt(0)+c.slice(1).toLowerCase().replace(/ and /g,' & '))
+      .filter((v,i,a)=>a.indexOf(v)===i) // dedupe
+      .join(', ');
+
+    row.innerHTML=`
+      <span class="drag-handle" style="font-size:14px;color:var(--t3);margin-right:10px;margin-top:2px;flex-shrink:0;touch-action:none">☰</span>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="document.getElementById('${id}').click()">
+        <div style="font-size:14px;font-weight:500;color:var(--t1)">${grp.label}</div>
+        <div style="font-size:10.5px;color:var(--t3);margin-top:2px;line-height:1.4">${subNames}</div>
+      </div>
+      <label class="cat-toggle" style="margin-top:2px;flex-shrink:0">
+        <input type="checkbox" id="${id}" ${allHidden?'':'checked'}>
+        <span class="cat-track"></span>
+      </label>`;
+
+    row.querySelector('input').onchange=e=>{
+      if(e.target.checked){
+        settings.hiddenCats=settings.hiddenCats.filter(c=>!grp.cats.includes(c));
+      } else {
+        grp.cats.forEach(c=>{if(!settings.hiddenCats.includes(c)) settings.hiddenCats.push(c);});
+      }
+      persist();if(menuData)safeRender();
+    };
+    wrap.appendChild(row);
+  });
+
+  // Drag the whole wrap to reorder groups
+  makeDraggable(wrap,(dragging,target)=>{
+    const from=dragging.dataset.group,to=target.dataset.group;
+    if(!from||!to||from===to) return;
+    const currentLabels=groups.map(g=>g.label);
+    const fi=currentLabels.indexOf(from),ti=currentLabels.indexOf(to);
+    if(fi<0||ti<0) return;
+    currentLabels.splice(fi,1);currentLabels.splice(ti,0,from);
+    settings.catGroupOrder=currentLabels;
+    persist();buildCatToggles();if(menuData)safeRender();
+  });
+}
+
+function buildHoursCard(){
+  const card=document.getElementById('hoursCard');
+  Array.from(card.querySelectorAll('.hours-group')).forEach(el=>el.remove());
+  const linkEl=card.querySelector('.hours-link');
+
+  const sections=[
+    {
+      label:'🌅 Breakfast',
+      rows:[
+        {meal:'Hot Breakfast',    time:'7:30–10:30 AM (some 7:30–11)',  halls:'Branford, Morse, Pauli Murray, Silliman, Ezra Stiles, Grace Hopper'},
+        {meal:'Cont. Breakfast',  time:'8:00–11:00 AM',                 halls:'Benjamin Franklin, Saybrook, Berkeley'},
+        {meal:'Express',          time:'8:00–11:00 AM',                 halls:'Davenport, J. Edwards, Pierson, TD, Trumbull'},
+        {meal:'Elm',              time:'Mon–Fri 8:00 AM–8:00 PM',       halls:'Schwarzman Center'},
+      ]
+    },
+    {
+      label:'☀️ Lunch',
+      rows:[
+        {meal:'Standard',         time:'11:30 AM–1:30 PM',              halls:'Benjamin Franklin, Branford, Berkeley, Ezra Stiles, Grace Hopper, Morse, Pauli Murray, Saybrook, Silliman'},
+        {meal:'Extended',         time:'12:00–2:00 PM',                 halls:'Davenport, J. Edwards, Pierson, TD, Trumbull'},
+        {meal:'Commons',          time:'Mon–Thu 11:00 AM–3:00 PM',      halls:'Schwarzman Center'},
+        {meal:'Slifka',           time:'Mon–Fri 11:30 AM–1:30 PM',      halls:'Sun–Fri 11:30 AM–1:30 PM'},
+        {meal:'Weekend Brunch',   time:'11:00 AM–1:30 PM',              halls:'All residential colleges'},
+      ]
+    },
+    {
+      label:'🌙 Dinner',
+      rows:[
+        {meal:'Standard',         time:'5:00–7:30 PM (Fri 5–7)',        halls:'Benjamin Franklin, Berkeley, Branford, Grace Hopper, Pauli Murray, Saybrook, Silliman'},
+        {meal:'Extended',         time:'5:30–8:00 PM (Fri 5–7)',        halls:'Davenport, J. Edwards, Pierson, TD, Trumbull'},
+        {meal:'Late',             time:'5:00–8:00 PM',                  halls:'Morse, Ezra Stiles'},
+        {meal:'Slifka',           time:'Mon 5–7:30 · Tue–Thu 5–8:45 · Fri 7:30–9:30',  halls:''},
+        {meal:'Weekend Dinner',   time:'5:00–7:00 PM',                  halls:'All residential colleges'},
+      ]
+    },
+  ];
+
+  sections.forEach(sec=>{
+    const el=document.createElement('div');el.className='hours-group';
+    let inner=`<div class="hours-group-label">${sec.label}</div>`;
+    sec.rows.forEach(r=>{
+      inner+=`<div class="hours-row">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${r.meal}</div>
+          ${r.halls?`<div style="font-size:10.5px;color:var(--t3);margin-top:1px">${r.halls}</div>`:''}
+        </div>
+        <div class="hours-time" style="flex-shrink:0;max-width:48%">${r.time}</div>
+      </div>`;
+    });
+    el.innerHTML=inner;
+    card.insertBefore(el,linkEl);
+  });
+}
+
+function toggleHallView(btn){
+  showAllHalls=!showAllHalls;
+  btn.textContent=showAllHalls?'My Halls':'All Halls';
+  btn.classList.toggle('showing-all',showAllHalls);
+  if(menuData)safeRender();
+}
+function updateHallChip(){
+  const chip=document.getElementById('hallToggleChip');
+  if(!chip) return;
+  if(!settings.favorites.length){showAllHalls=false;chip.style.display='none';return;}
+  chip.style.display='';
+  chip.textContent=showAllHalls?'My Halls':'All Halls';
+  chip.classList.toggle('showing-all',showAllHalls);
+}
+function updateFilterChips(){
+  // Legacy — no-op now that dietary chips are in settings only
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(tab){
+  const isMenus=tab==='menus';
+  document.getElementById('content').classList.toggle('hidden',!isMenus);
+  document.getElementById('mealBar').classList.toggle('hidden',!isMenus);
+  document.getElementById('filterScroll').classList.toggle('hidden',!isMenus);
+  document.getElementById('settingsPanel').classList.toggle('active',tab==='settings');
+  document.getElementById('mapPanel').classList.toggle('active',tab==='map');
+  document.getElementById('libPanel').classList.toggle('active',tab==='lib');
+  document.getElementById('tabMenus').classList.toggle('active',isMenus);
+  document.getElementById('tabMap').classList.toggle('active',tab==='map');
+  document.getElementById('tabLib').classList.toggle('active',tab==='lib');
+  document.getElementById('tabSettings').classList.toggle('active',tab==='settings');
+  if(tab==='settings'){document.getElementById('settingsPanel').scrollTop=0;buildCatToggles();}
+  if(tab==='map'){
+    renderMap();
+    if(!userLocation&&!locLoading) requestLocation(()=>renderMap());
+  }
+  if(tab==='lib'){
+    renderLibraries();
+    if(!userLocation&&!locLoading) requestLocation(()=>renderLibraries());
+  }
+}
+
+// ── Meal bar ──────────────────────────────────────────────────────────────────
+// On weekdays: All · Breakfast · Lunch · Dinner
+// On weekends: All · Breakfast · Brunch · Dinner
+// 'breakfast' = early morning slot (select halls only on weekends)
+// 'brunch'    = weekend 11am–1:30pm slot (all halls)
+// 'lunch'     = weekday only
+function isWeekendDate(d){ const dw=d.getDay(); return dw===0||dw===6; }
+
+function buildMealBar(){
+  const bar=document.getElementById('mealBar');
+  const isWE=isWeekendDate(selDate);
+  const meals=isWE
+    ?[{k:'all',l:'All'},{k:'breakfast',l:'Breakfast'},{k:'brunch',l:'Brunch'},{k:'dinner',l:'Dinner'}]
+    :[{k:'all',l:'All'},{k:'breakfast',l:'Breakfast'},{k:'lunch',l:'Lunch'},{k:'dinner',l:'Dinner'}];
+  bar.innerHTML=meals.map(m=>`<button class="mbtn${selMeal===m.k?' active':''}" onclick="setMeal('${m.k}',this)">${m.l}</button>`).join('');
+}
+
+function setMeal(m,btn){
+  selMeal=m;
+  document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(menuData)safeRender();
+}
+
+function getCurrentMeal(){
+  const now=new Date(),mins=now.getHours()*60+now.getMinutes();
+  const isWE=isWeekendDate(now);
+  if(isWE){
+    if(mins>=8*60&&mins<10*60+30) return 'breakfast'; // early bfast (select halls)
+    if(mins>=11*60&&mins<14*60)   return 'brunch';
+    if(mins>=17*60&&mins<19*60)   return 'dinner';
+    if(mins<8*60)                 return 'breakfast';
+    if(mins<17*60)                return 'brunch';
+    return 'dinner';
+  }
+  const isFriSat=now.getDay()===5||now.getDay()===6;
+  if(mins>=7*60+30&&mins<11*60) return 'breakfast';
+  if(mins>=11*60&&mins<14*60)   return 'lunch';
+  if(mins>=17*60&&mins<(isFriSat?19*60:20*60)) return 'dinner';
+  if(mins<7*60+30) return 'breakfast';
+  if(mins<17*60)   return 'lunch';
+  return 'dinner';
+}
+
+function applyAutoMeal(){
+  if(selDate.toDateString()!==new Date().toDateString()) return;
+  selMeal=getCurrentMeal();
+  buildMealBar();
+}
+
+// ── Date chips ────────────────────────────────────────────────────────────────
+function buildDates(){
+  const row=document.getElementById('dateRow');row.innerHTML='';
+  const today=new Date(),DAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  for(let i=-1;i<=5;i++){
+    const d=new Date(today);d.setDate(today.getDate()+i);
+    const isToday=i===0,isSel=d.toDateString()===selDate.toDateString();
+    const btn=document.createElement('button');btn.className=`dchip${isToday?' today':''}${isSel?' active':''}`;
+    btn.innerHTML=`<span class="dl">${DAY[d.getDay()]}</span><span class="dn">${d.getDate()}</span><span class="dot"></span>`;
+    btn.onclick=()=>{selDate=d;buildDates();buildMealBar();menuData=null;slifkaData=null;closureData=null;fetchAll();};
+    row.appendChild(btn);
+  }
+  // scroll active date into view
+  setTimeout(()=>{row.querySelector('.dchip.active')?.scrollIntoView({block:'nearest',inline:'center'});},50);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function setMeal(m,btn){selMeal=m;document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(menuData)safeRender();}
+function setFilter(f,btn){
+  selFilter=f;document.querySelectorAll('#filterScroll .fchip:not(.hall-chip)').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  settings.defaultFilter=f;persist();
+  document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('sel',f==='all'?b.textContent.trim()==='All':b.textContent.includes(f)));
+  if(menuData)safeRender();
+}
+function doRefresh(){menuData=null;slifkaData=null;venueData={};closureData=null;try{localStorage.removeItem(menuCacheKey());}catch(e){}fetchAll();}
+
+// ── Get today's hours string for a hall ──────────────────────────────────────
+function getHallHoursToday(hall){
+  if(!hall?.hours) return null;
+  const isWE=isWeekendDate(selDate);
+  const slots=isWE?hall.hours.weekend:hall.hours.weekday;
+  if(!slots||!Object.keys(slots).length) return null;
+  return Object.values(slots).filter(Boolean).join(' · ');
+}
+
+// ── Hall open/closed logic ────────────────────────────────────────────────────
+function hallOpenStatus(hall,closedSlugs){
+  if(!hall) return {open:false,text:'',soon:false};
+  if(closedSlugs.has(hall.slug)) return {open:false,text:'Closed today',soon:false};
+  const now=new Date(),dow=now.getDay(),mins=now.getHours()*60+now.getMinutes();
+  const isWeekend=dow===0||dow===6;
+  const h=hall.hours;
+  if(!h) return {open:false,text:'',soon:false};
+
+  function parseRange(str){
+    if(!str) return null;
+    const m=str.match(/(\d+):(\d+)\s*(AM|PM)[^–\-]*[–\-]\s*(\d+):(\d+)\s*(AM|PM)/i);
+    if(!m) return null;
+    let sh=parseInt(m[1]),sm=parseInt(m[2]),ea=m[3];
+    let eh=parseInt(m[4]),em=parseInt(m[5]),ep=m[6];
+    if(ea.toUpperCase()==='PM'&&sh!==12) sh+=12;
+    if(ea.toUpperCase()==='AM'&&sh===12) sh=0;
+    if(ep.toUpperCase()==='PM'&&eh!==12) eh+=12;
+    if(ep.toUpperCase()==='AM'&&eh===12) eh=0;
+    return {start:sh*60+sm, end:eh*60+em};
+  }
+
+  const slots=isWeekend?h.weekend:h.weekday;
+  if(!slots||!Object.keys(slots).length) return {open:false,text:'Closed today',soon:false};
+  const ranges=Object.values(slots).map(s=>parseRange(s)).filter(Boolean);
+  if(!ranges.length) return {open:false,text:'',soon:false};
+
+  for(const r of ranges){
+    if(mins>=r.start&&mins<r.end){
+      const minsLeft=r.end-mins;
+      if(minsLeft<=30) return {open:true,text:`Closes at ${fmtMins(r.end)} (${minsLeft}m)`,soon:true};
+      return {open:true,text:`Open until ${fmtMins(r.end)}`,soon:false};
+    }
+    if(mins<r.start){
+      const minsUntil=r.start-mins;
+      if(minsUntil<=30) return {open:false,text:`Opens in ${minsUntil}m`,soon:true};
+      return {open:false,text:`Opens at ${fmtMins(r.start)}`,soon:false};
+    }
+  }
+  return {open:false,text:'Closed',soon:false};
+}
+
+function fmtMins(m){
+  const h=Math.floor(m/60),min=m%60,ampm=h>=12?'PM':'AM';
+  const hh=h>12?h-12:h===0?12:h;
+  return `${hh}:${String(min).padStart(2,'0')} ${ampm}`;
+}
+
+// ── Parse Nutrislice ──────────────────────────────────────────────────────────
+function parseNutrislice(apiData,targetDate,mealType){
+  const days=apiData?.days||[];
+  const day=days.find(d=>d.date===targetDate)||days[0];
+  if(!day) return [];
+  const allItems=day.menu_items||[];
+  const dinnerMenuIds=new Set();
+  for(const item of allItems)
+    if(item.is_station_header&&item.text?.trim().toUpperCase().startsWith('DINNER'))
+      dinnerMenuIds.add(item.menu_id);
+  const isDinner=mealType==='dinner';
+  const filtered=isDinner
+    ?(dinnerMenuIds.size===0?[]:allItems.filter(i=>dinnerMenuIds.has(i.menu_id)))
+    :(dinnerMenuIds.size===0?allItems:allItems.filter(i=>!dinnerMenuIds.has(i.menu_id)));
+  if(!filtered.length) return [];
+  const sections=[];let cur=null;
+  for(const item of filtered){
+    if(item.is_station_header||item.is_section_title){
+      const label=(item.text||'').trim();if(!label)continue;
+      cur={name:label,items:[]};sections.push(cur);seenCategories.add(label.toUpperCase());
+    } else if(item.food){
+      if(!cur){cur={name:"Today's Menu",items:[]};sections.push(cur);}
+      const slugs=(item.food?.icons?.food_icons||[]).map(ic=>(ic.slug||'').toLowerCase());
+      const tags=[];
+      if(slugs.some(s=>s.includes('vegan')))            tags.push('vegan');
+      else if(slugs.some(s=>s.includes('vegetarian')))  tags.push('vegetarian');
+      if(slugs.some(s=>s.includes('gluten')))           tags.push('gluten-free');
+      if(slugs.some(s=>s.includes('halal')))            tags.push('halal');
+      const calories=item.food.rounded_nutrition_info?.calories??null;
+      if(item.food.name) cur.items.push({name:item.food.name,tags,calories});
+    }
+  }
+  return sections.filter(s=>s.items.length>0);
+}
+
+// ── Section sort ──────────────────────────────────────────────────────────────
+function sectionSortKey(name,mealType){
+  const u=name.toUpperCase();
+  const prios=SECTION_PRIORITY[mealType]||[];
+  for(let i=0;i<prios.length;i++) if(u.startsWith(prios[i])||u===prios[i]) return -100+i;
+  if(u.includes('DESSERT')||u==='ICE CREAM') return 3;
+  if(u.includes('SOUP')||u.includes('SALAD')||u.includes('PIZZA')||u.includes('ACCOMPANIMENT')||u.includes('ADDITIONAL')||u.includes('FRESH FRUIT')) return 2;
+  return 1;
+}
+// Find which group index a section name belongs to (for ordering)
+function groupIndexOf(sectionName, groupOrder){
+  const u=sectionName.toUpperCase().trim();
+  for(const grp of CAT_GROUPS){
+    if(grp.cats.some(c=>u===c||u.startsWith(c+' ')||u.endsWith(' '+c))){
+      const idx=groupOrder?groupOrder.indexOf(grp.label):-1;
+      return idx===-1?999:idx;
+    }
+  }
+  return 999;
+}
+
+// Returns true if a section should be hidden.
+// A section is hidden if its uppercase name exactly matches any cat in hiddenCats,
+// OR if it belongs to a group where ALL cats in that group are hidden.
+function isSectionHidden(sectionName, hiddenSet){
+  const u=sectionName.toUpperCase().trim();
+  // Direct match (e.g. "ICE CREAM" in hiddenCats)
+  if(hiddenSet.has(u)) return true;
+  // Group membership: find which group this section belongs to
+  for(const grp of CAT_GROUPS){
+    const matchesCat=grp.cats.some(c=>{
+      // Exact match or section name starts with the cat name
+      // (e.g. "GREENS AND GRAINS LUNCH" starts with "GREENS AND GRAINS LUNCH")
+      return u===c;
+    });
+    if(matchesCat){
+      // Only hide if the entire group is toggled off (all cats hidden)
+      return grp.cats.every(c=>hiddenSet.has(c));
+    }
+  }
+  return false;
+}
+
+// Apply catGroupOrder overrides to section sorting
+function sectionSortWithOrder(sections, mealType, catGroupOrder){
+  return [...sections].sort((a,b)=>{
+    const ga=groupIndexOf(a.name,catGroupOrder);
+    const gb=groupIndexOf(b.name,catGroupOrder);
+    if(ga!==gb) return ga-gb;
+    // Same group — fall back to meal-specific priority
+    return sectionSortKey(a.name,mealType)-sectionSortKey(b.name,mealType);
+  });
+}
+
+// ── Fetch all data ────────────────────────────────────────────────────────────
+async function fetchAll(){
+  if(loading) return;
+
+  // Try loading from cache first
+  if(loadMenuCache()){
+    loading=false;
+    safeRender();
+    return;
+  }
+
+  loading=true;
+  const btn=document.getElementById('refreshBtn');btn.classList.add('spinning');
+  const y=selDate.getFullYear(),mo=String(selDate.getMonth()+1).padStart(2,'0'),d=String(selDate.getDate()).padStart(2,'0');
+  const targetDate=fmtDate(selDate);
+  const dateStr=selDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  // Weekdays: breakfast, lunch, dinner. Weekends: breakfast (early) + dinner only.
+  // Brunch is served via the 'breakfast' Nutrislice meal type on weekends — same API call.
+  const isWE=isWeekendDate(selDate);
+  const mealTypes=isWE?['breakfast','dinner']:['breakfast','lunch','dinner'];
+  const favSlugs=settings.favorites.length?settings.favorites:HALLS.map(h=>h.slug);
+  // Fetch only favorite residential halls initially
+  const favResHalls=HALLS.filter(h=>h.type==='residential'&&favSlugs.includes(h.slug));
+  // On weekends, always fetch the 3 halls that serve early breakfast, even if not favorited
+  const WEEKEND_BFAST_SLUGS=['ezra-stiles-college','hopper-college','morse-college'];
+  const extraBfastHalls=isWE
+    ?HALLS.filter(h=>WEEKEND_BFAST_SLUGS.includes(h.slug)&&!favSlugs.includes(h.slug))
+    :[];
+  const needsSlifka=favSlugs.includes('slifka');
+  const venueKeys=['commons','elm','ivy'].filter(v=>favSlugs.includes(v));
+
+  document.getElementById('content').innerHTML=`
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <div class="load-title">Loading Menus</div>
+      <div class="load-sub">${dateStr}</div>
+      <div class="pbar-wrap"><div class="pbar-fill" id="pbar" style="width:3%"></div></div>
+      <div class="pbar-msg" id="pmsg">Fetching…</div>
+    </div>`;
+
+  const setP=(pct,msg)=>{const b=document.getElementById('pbar'),m=document.getElementById('pmsg');if(b)b.style.width=pct+'%';if(m)m.textContent=msg;};
+
+  try{
+    const total=Math.max(1,favResHalls.length*mealTypes.length);let done=0;
+
+    // Fetch favorites + closures + extra weekend breakfast halls in parallel
+    const [favHallResults,extraBfastResults,slifkaResult,closureResult,...venueResults]=await Promise.all([
+      Promise.all(favResHalls.map(async hall=>{
+        const meals={};
+        await Promise.all(mealTypes.map(async mt=>{
+          try{const r=await fetch(`${API_BASE}/api/menu/${hall.slug}/${mt}/${y}/${mo}/${d}`);meals[mt]={sections:r.ok?parseNutrislice(await r.json(),targetDate,mt):[]};}
+          catch{meals[mt]={sections:[]};}
+          done++;setP(5+Math.round((done/total)*60),`Loaded ${done} of ${total}…`);
+        }));
+        return{name:hall.name,slug:hall.slug,meals};
+      })),
+      // Extra weekend breakfast halls: only fetch the 'breakfast' meal type
+      Promise.all(extraBfastHalls.map(async hall=>{
+        const meals={};
+        try{const r=await fetch(`${API_BASE}/api/menu/${hall.slug}/breakfast/${y}/${mo}/${d}`);meals.breakfast={sections:r.ok?parseNutrislice(await r.json(),targetDate,'breakfast'):[]};}
+        catch{meals.breakfast={sections:[]};}
+        return{name:hall.name,slug:hall.slug,meals,breakfastOnly:true};
+      })),
+      needsSlifka?fetch(`${API_BASE}/api/slifka`).then(r=>r.ok?r.json():null).catch(()=>null):Promise.resolve(null),
+      fetch(`${API_BASE}/api/closures`).then(r=>r.ok?r.json():null).catch(()=>null),
+      ...venueKeys.map(v=>fetch(`${API_BASE}/api/venue/${v}`).then(r=>r.ok?r.json():null).catch(()=>null)),
+    ]);
+
+    closureData=closureResult;
+    venueKeys.forEach((v,i)=>{if(venueResults[i]) venueData[v]=venueResults[i];});
+
+    // Detect if any fav residential halls are closed for selDate
+    const {closedSlugs:closedNow}=getClosedSlugsForDate(selDate);
+    const closedFavSlugs=favResHalls.map(h=>h.slug).filter(s=>closedNow.has(s));
+
+    let altHallResults=[];
+    if(closedFavSlugs.length>0){
+      // Some favs are closed — fetch all non-closed non-fav residential halls
+      const altHalls=HALLS.filter(h=>h.type==='residential'&&!favSlugs.includes(h.slug)&&!closedNow.has(h.slug));
+      setP(72,`Loading ${altHalls.length} alternatives…`);
+      let altDone=0;
+      altHallResults=await Promise.all(altHalls.map(async hall=>{
+        const meals={};
+        await Promise.all(mealTypes.map(async mt=>{
+          try{const r=await fetch(`${API_BASE}/api/menu/${hall.slug}/${mt}/${y}/${mo}/${d}`);meals[mt]={sections:r.ok?parseNutrislice(await r.json(),targetDate,mt):[]};}
+          catch{meals[mt]={sections:[]};}
+        }));
+        altDone++;setP(72+Math.round((altDone/altHalls.length)*22),`Alternatives ${altDone}/${altHalls.length}…`);
+        return{name:hall.name,slug:hall.slug,meals};
+      }));
+    }
+
+    menuData=[...favHallResults,...altHallResults,...extraBfastResults];
+    slifkaData=slifkaResult;
+    setP(100,'Done!');
+    saveMenuCache();
+    setTimeout(()=>{loading=false;btn.classList.remove('spinning');safeRender();},200);
+  } catch(err){
+    loading=false;btn.classList.remove('spinning');
+    document.getElementById('content').innerHTML=`
+      <div style="padding:20px"><div style="background:#fff5f5;border:1px solid #fecaca;border-radius:14px;padding:14px;display:flex;gap:10px">
+        <div style="font-size:22px">⚠️</div><div>
+          <div style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:3px">Can't reach server</div>
+          <div style="font-size:12.5px;color:#6b7280;line-height:1.4">Run <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px">npm start</code> in the project folder.<br><small style="color:#9ca3af">${err.message}</small></div>
+        </div></div>
+        <button style="margin-top:10px;background:var(--yale-blue);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:600;width:100%;cursor:pointer" onclick="doRefresh()">↻ Try Again</button></div>`;
+  }
+}
+
+// ── Render announcements ──────────────────────────────────────────────────────
+function renderAnnouncements(closedSlugs){
+  if(!closureData) return '';
+  const selUtc=Date.UTC(selDate.getFullYear(),selDate.getMonth(),selDate.getDate(),12,0,0);
+
+  const withinWindow=e=>{
+    const s=new Date(e.start),en=new Date(e.end);
+    const startDay=Date.UTC(s.getUTCFullYear(),s.getUTCMonth(),s.getUTCDate(),12,0,0);
+    const endDay  =Date.UTC(en.getUTCFullYear(),en.getUTCMonth(),en.getUTCDate(),12,0,0);
+    return startDay<=selUtc&&endDay>=selUtc;
+  };
+  const cards=(closureData.announcements||[]).filter(withinWindow).map(e=>{
+    const isUrgent=e.text.toLowerCase().includes('closed')||e.text.toLowerCase().includes('open for');
+    const cls=isUrgent?'urgent':'info';
+    const todayUtc=Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate(),12,0,0);
+    const label=selUtc===todayUtc?'Today':'This day';
+    return `<div class="announce-card ${cls}">
+      <div class="announce-hd"><span class="announce-icon">${isUrgent?'🔔':'📅'}</span>
+      <div><div class="announce-label">${label} · ${e.dateRange}</div>
+      <div class="announce-text">${e.text}</div></div></div></div>`;
+  });
+
+  // Special events on selDate
+  (closureData.specialEvents||[]).filter(e=>{
+    const s=new Date(e.start),en=new Date(e.end);s.setHours(0,0,0,0);
+    return s<=selDate&&en>=selDate;
+  }).forEach(e=>{
+    const favHalls=e.hallSlugs.filter(s=>settings.favorites.includes(s));
+    if(favHalls.length===0){
+      cards.push(`<div class="announce-card event-special">
+        <div class="announce-hd"><span class="announce-icon">🎉</span>
+        <div><div class="announce-label">Special Event</div>
+        <div class="announce-text">${e.text}</div></div></div></div>`);
+    }
+  });
+
+  return cards.length?`<div class="announcements">${cards.join('')}</div>`:'';
+}
+
+// ── Slifka render ─────────────────────────────────────────────────────────────
+
+// Parse "Menu for February 27th – March 6th" → {start: Date, end: Date} or null
+function parseSlifkaDateRange(title){
+  if(!title) return null;
+  // Strip ordinal suffixes: "27th" → "27", "6th" → "6"
+  const clean=title.replace(/(\d+)(st|nd|rd|th)/gi,'$1');
+  // Try to find two dates in "Month Day – Month Day" or "Month Day – Day"
+  const months={january:0,february:1,march:2,april:3,may:4,june:5,
+                 july:6,august:7,september:8,october:9,november:10,december:11};
+  const mo='(january|february|march|april|may|june|july|august|september|october|november|december)';
+  // Full: "February 27 – March 6"
+  const full=new RegExp(`${mo}\\s+(\\d+)\\s*[–\\-]+\\s*${mo}\\s+(\\d+)`,'i');
+  // Short: "February 27 – 6" (same month)
+  const short=new RegExp(`${mo}\\s+(\\d+)\\s*[–\\-]+\\s*(\\d+)`,'i');
+  const yr=new Date().getFullYear();
+  let m;
+  if((m=full.exec(clean))!==null){
+    const start=new Date(yr,months[m[1].toLowerCase()],parseInt(m[2]));
+    let end=new Date(yr,months[m[3].toLowerCase()],parseInt(m[4]));
+    if(end<start) end.setFullYear(yr+1);
+    end.setHours(23,59,59,999); // include the full end day
+    return{start,end};
+  }
+  if((m=short.exec(clean))!==null){
+    const start=new Date(yr,months[m[1].toLowerCase()],parseInt(m[2]));
+    const end=new Date(yr,months[m[1].toLowerCase()],parseInt(m[3]));
+    end.setHours(23,59,59,999); // include the full end day
+    return{start,end};
+  }
+  return null;
+}
+
+function renderSlifkaCard(idx,isFav,closedSlugs){
+  const autoOpen=isFav&&idx===0;
+  const isClosed=closedSlugs.has('slifka');
+  const dow=selDate.getDay();
+  const isWeekend=dow===0||dow===6;
+
+  // Pick which image type to show based on meal filter + day
+  let wantType;
+  if(isWeekend) wantType='weekend';
+  else if(selMeal==='dinner') wantType='dinner';
+  else wantType='lunch';
+
+  // On weekends, Slifka may still serve (Shabbat dinner Fri night, bagel brunch Sun, etc.)
+  // Only hide if explicitly closed per announcement
+  const slifkaClosedBySchedule=false;
+
+  // Check date range — used both for body content and card greying
+  const slifkaRange=slifkaData?.images?.length?parseSlifkaDateRange(slifkaData.title):null;
+  const sel0=new Date(selDate); sel0.setHours(0,0,0,0);
+  const slifkaOutOfRange=slifkaRange?(sel0<slifkaRange.start||sel0>slifkaRange.end):false;
+  const slifkaEffectivelyClosed=isClosed||slifkaClosedBySchedule||slifkaOutOfRange;
+
+  let body='';
+  if(isClosed||slifkaClosedBySchedule){
+    body=`<div class="closed-row">${isClosed?'Closed per announcement':'Closed'}</div>`;
+  } else if(!slifkaData||!slifkaData.images?.length){
+    const err=slifkaData?.error||'Menu unavailable';
+    const dbg=(slifkaData?.debug||[]).join(' → ');
+    body=`<div class="slifka-err">
+      <div class="slifka-err-title">Menu images unavailable</div>
+      <div class="slifka-err-detail">${err}<br><small style="color:var(--t3)">${dbg}</small></div>
+      <a class="slifka-fallback" href="https://slifkacenter.org/menu/" target="_blank">📋 View on slifkacenter.org →</a>
+    </div>`;
+  } else {
+    // Check if selDate falls within the menu's published date range
+    const range=slifkaRange;
+    const sel=sel0;
+    const inRange=!range||(sel>=range.start&&sel<=range.end);
+
+    if(!inRange){
+      // Outside the published week — tell the user clearly
+      const rangeStr=slifkaData.title||'this week';
+      const isFuture=range&&sel>range.end;
+      body=`<div class="slifka-err">
+        <div class="slifka-err-title">${isFuture?'Menu not yet posted':'Menu not available'}</div>
+        <div class="slifka-err-detail">
+          The current menu covers ${rangeStr.replace(/^menu for\s*/i,'')}.
+          ${isFuture?'Check back later in the week for the updated menu.':'This date is outside the published range.'}
+        </div>
+        <a class="slifka-fallback" href="https://slifkacenter.org/menu/" target="_blank">📋 View on slifkacenter.org →</a>
+      </div>`;
+    } else {
+      if(slifkaData.title) body+=`<div class="slifka-week">${slifkaData.title}</div>`;
+      const imgs=slifkaData.images;
+      const isNewFormat=imgs.length&&typeof imgs[0]==='object';
+
+      if(isNewFormat){
+        const match=imgs.find(img=>img.type===wantType);
+        const toShow=match?[match]:imgs;
+        toShow.forEach(img=>{
+          const proxyUrl=`${API_BASE}/api/slifka-image?url=${encodeURIComponent(img.url)}`;
+          const label=img.title||(img.type==='weekend'?'Weekend & Shabbat':img.type==='lunch'?'Weekday Lunch':'Weekday Dinner');
+          body+=`<div class="slifka-img-label">${label}</div>
+            <div class="slifka-img-wrap"><img src="${proxyUrl}" loading="lazy" alt="${label}" onerror="this.src='${img.url}'"></div>`;
+        });
+      } else {
+        const legacyLabels=['Weekend & Shabbat','Weekday Lunch','Weekday Dinner'];
+        const legacyWant=isWeekend?0:selMeal==='dinner'?2:1;
+        const url=imgs[legacyWant]||imgs[0];
+        if(url){
+          const proxyUrl=`${API_BASE}/api/slifka-image?url=${encodeURIComponent(url)}`;
+          const label=legacyLabels[legacyWant]||'Menu';
+          body+=`<div class="slifka-img-label">${label}</div>
+            <div class="slifka-img-wrap"><img src="${proxyUrl}" loading="lazy" alt="${label}" onerror="this.src='${url}'"></div>`;
+        }
+      }
+    }
+  }
+
+  const statusStr=slifkaEffectivelyClosed?'<span class="closed-badge">CLOSED</span>':'<span style="font-size:11px;color:var(--t2)">Kosher · Weekly menu</span>';
+  return `<div class="hcard slifka-card${autoOpen?' open':''}${isFav?' fav':''}${slifkaEffectivelyClosed?' closed-hall':''}" id="hcSlifka" style="animation-delay:${idx*30}ms">
+    <div class="hhead" onclick="this.closest('.hcard').classList.toggle('open')">
+      <div style="flex:1">
+        <div class="hname-row"><span class="hname">Slifka Center</span><span class="hstar">★</span>${slifkaEffectivelyClosed?'<span class="closed-badge">CLOSED</span>':''}</div>
+        <div class="hstatus">${statusStr}</div>
+      </div>
+      <span class="chev">›</span>
+    </div>
+    <div class="mitems">${body}</div>
+  </div>`;
+}
+
+// ── Venue render ──────────────────────────────────────────────────────────────
+function renderVenueCard(slug,idx,isFav,closedSlugs){
+  const hall=HALLS.find(h=>h.slug===slug);
+  const data=venueData[slug];
+  const autoOpen=isFav&&idx===0;
+  if(selMeal==='breakfast'&&slug==='commons') return '';
+  if(selMeal==='dinner'&&slug==='commons') return '';
+
+  const now=new Date(),mins=now.getHours()*60+now.getMinutes(),dow=now.getDay();
+  let isOpen=false;
+  if(slug==='commons') isOpen=dow>=1&&dow<=4&&mins>=11*60&&mins<15*60;
+  if(slug==='elm')     isOpen=dow>=1&&dow<=5&&mins>=8*60&&mins<20*60;
+
+  const isClosed=closedSlugs.has(slug);
+  const selDow=selDate.getDay();
+  const isWeekendSel=selDow===0||selDow===6;
+  let schedClosed=false;
+  if(slug==='commons') schedClosed=selDow===0||selDow===5||selDow===6; // Mon–Thu only
+  if(slug==='elm')     schedClosed=isWeekendSel;                        // Mon–Fri only
+  if(slug==='ivy')     schedClosed=isWeekendSel;                        // assume weekdays only
+
+  const effectivelyClosed=isClosed||schedClosed;
+  const statusTxt=isOpen?`Open until ${slug==='commons'?'3:00 PM':'8:00 PM'}`:(slug==='commons'?'Mon–Thu 11 AM–3 PM':slug==='elm'?'Mon–Fri 8 AM–8 PM':'See website');
+
+  let body=`<div class="venue-hours-row"><span class="venue-dot${isOpen?' open':' closed'}"></span><span>${statusTxt}</span></div>`;
+  if(data?.description) body+=`<div class="venue-desc">${data.description}</div>`;
+  if(data?.menuLinks?.length){
+    body+=`<div class="venue-pdf-links">`;
+    data.menuLinks.forEach(l=>{body+=`<a class="venue-pdf-link" href="${l.url}" target="_blank">📄 ${l.label}</a>`;});
+    body+=`</div>`;
+  } else if(!data){
+    body+=`<div class="closed-row">Loading menu…</div>`;
+  }
+
+  return `<div class="hcard venue-card${autoOpen?' open':''}${isFav?' fav':''}${effectivelyClosed?' closed-hall':''}" id="hcV${slug}" style="animation-delay:${idx*30}ms">
+    <div class="hhead" onclick="this.closest('.hcard').classList.toggle('open')">
+      <div style="flex:1">
+        <div class="hname-row"><span class="hname">${hall?.name||slug}</span><span class="hstar">★</span>${effectivelyClosed?'<span class="closed-badge">CLOSED</span>':''}</div>
+        <div class="hstatus"><span class="hstatus-dot ${isOpen?'dot-open':'dot-closed'}"></span><span style="font-size:11px;color:var(--t2)">Schwarzman Center</span></div>
+      </div>
+      <span class="chev">›</span>
+    </div>
+    <div class="mitems">${body}</div>
+  </div>`;
+}
+
+// ── Compute closures for any date from announcement entries ──────────────────
+function getClosedSlugsForDate(date){
+  if(!closureData) return {closedSlugs:new Set(), openSlugs:new Set()};
+
+  // Compare dates by UTC calendar day (server stores timestamps as UTC noon)
+  const dUtc=Date.UTC(date.getFullYear(),date.getMonth(),date.getDate(),12,0,0);
+  const closedToday=new Set();
+  let allResClosed=false;
+  const openExceptions=new Set();
+
+  for(const e of (closureData.announcements||[])){
+    // e.start / e.end are UTC noon timestamps — compare day-level
+    const sUtc=new Date(e.start); const eUtc=new Date(e.end);
+    const startDay=Date.UTC(sUtc.getUTCFullYear(),sUtc.getUTCMonth(),sUtc.getUTCDate(),12,0,0);
+    const endDay  =Date.UTC(eUtc.getUTCFullYear(),eUtc.getUTCMonth(),eUtc.getUTCDate(),12,0,0);
+    if(dUtc<startDay||dUtc>endDay) continue;
+    const t=e.text.toLowerCase();
+    const clauses=t.split(/[;,]+/).map(s=>s.trim()).filter(Boolean);
+
+    const hasAllOtherClosed=clauses.some(c=>
+      (c.includes('all other')||c.includes('all residential')||c.includes('all college')||c.includes('all dining'))
+      &&c.includes('closed')
+    );
+    const hasAllResume=clauses.some(c=>
+      (c.includes('all residential')||c.includes('all college'))
+      &&(c.includes('resume')||c.includes('regular hours')||c.includes('routine hours'))
+    );
+
+    if(hasAllResume) continue;
+
+    if(hasAllOtherClosed){
+      allResClosed=true;
+      for(const clause of clauses){
+        if(clause.includes('closed')&&(clause.includes('all other')||clause.includes('all residential'))) continue;
+        if(clause.includes('open')||!clause.includes('closed')){
+          for(const [slug,kws] of Object.entries(HALL_KW_CLIENT)){
+            if(kws.some(kw=>clause.includes(kw))) openExceptions.add(slug);
+          }
+        }
+      }
+      const exceptIdx=t.indexOf('except');
+      if(exceptIdx!==-1){
+        const after=t.slice(exceptIdx);
+        for(const [slug,kws] of Object.entries(HALL_KW_CLIENT)){
+          if(kws.some(kw=>after.includes(kw))) openExceptions.add(slug);
+        }
+      }
+    } else {
+      for(const clause of clauses){
+        const isClosed=clause.includes('closed');
+        const isOpen=clause.includes('open')||clause.includes('resume');
+        if(!isClosed&&!isOpen) continue;
+        for(const [slug,kws] of Object.entries(HALL_KW_CLIENT)){
+          if(kws.some(kw=>clause.includes(kw))){
+            if(isClosed&&!isOpen) closedToday.add(slug);
+          }
+        }
+      }
+    }
+  }
+
+  if(allResClosed){
+    for(const slug of Object.keys(HALL_KW_CLIENT)){
+      if(!openExceptions.has(slug)) closedToday.add(slug);
+    }
+    for(const slug of openExceptions) closedToday.delete(slug);
+  }
+
+  return {closedSlugs:closedToday, openSlugs:openExceptions};
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render(){
+  const allNutrislice=menuData||[];
+  const hasFavs=settings.favorites.length>0;
+  const favSet=new Set(settings.favorites);
+  const hiddenSet=new Set(settings.hiddenCats.map(c=>c.toUpperCase()));
+
+  // Recompute closures for selDate (not just today)
+  const {closedSlugs, openSlugs}=getClosedSlugsForDate(selDate);
+
+  // Build ordered slug list
+  let orderedSlugs;
+  if(hasFavs&&!showAllHalls) orderedSlugs=[...settings.favorites];
+  else if(hasFavs) orderedSlugs=[...settings.favorites,...HALLS.filter(h=>h.slug!=='steep'&&!favSet.has(h.slug)).map(h=>h.slug)];
+  else orderedSlugs=HALLS.filter(h=>h.slug!=='steep').map(h=>h.slug);
+
+  // On weekends, inject the 3 breakfast halls if not already listed (for both breakfast and brunch)
+  const WEEKEND_BFAST_SLUGS=['ezra-stiles-college','hopper-college','morse-college'];
+  const isWERender=isWeekendDate(selDate);
+  if(isWERender&&(selMeal==='breakfast'||selMeal==='brunch'||selMeal==='all')){
+    const alreadyIn=new Set(orderedSlugs);
+    WEEKEND_BFAST_SLUGS.forEach(s=>{
+      if(!alreadyIn.has(s)&&allNutrislice.find(h=>h.slug===s)){
+        orderedSlugs.push(s);
+      }
+    });
+  }
+
+  // Determine which fav residential halls are closed
+  const resFavs=settings.favorites.filter(s=>HALLS.find(h=>h.slug===s)?.type==='residential');
+  const closedFavRes=resFavs.filter(s=>closedSlugs.has(s)&&!openSlugs.has(s));
+  const allFavsClosed=resFavs.length>0&&closedFavRes.length===resFavs.length;
+
+  // When any favs are closed, append all non-closed residential halls as substitutes
+  if(closedFavRes.length>0&&hasFavs&&!showAllHalls){
+    const alreadyIn=new Set(orderedSlugs);
+    // openSlugs first (explicitly confirmed open by announcement)
+    [...openSlugs]
+      .filter(s=>!alreadyIn.has(s)&&HALLS.find(h=>h.slug===s)?.type==='residential')
+      .forEach(s=>{orderedSlugs.push(s);alreadyIn.add(s);});
+    // Then all other non-closed residential halls
+    HALLS
+      .filter(h=>h.type==='residential'&&!closedSlugs.has(h.slug)&&!alreadyIn.has(h.slug))
+      .forEach(h=>{orderedSlugs.push(h.slug);});
+  }
+
+  const mealLabelMap={breakfast:'ml-b',lunch:'ml-l',dinner:'ml-d'};
+  let html=renderAnnouncements(closedSlugs);
+
+  if(allFavsClosed&&hasFavs&&!showAllHalls){
+    html+=`<div class="announce-card urgent" style="margin-bottom:10px">
+      <div class="announce-hd"><span class="announce-icon">🔒</span>
+      <div><div class="announce-label">Your preferred halls are closed today</div>
+      <div class="announce-text">Showing other open dining halls below.</div></div></div></div>`;
+  } else if(closedFavRes.length>0&&hasFavs&&!showAllHalls){
+    const names=closedFavRes.map(s=>HALLS.find(h=>h.slug===s)?.name).filter(Boolean).join(', ');
+    html+=`<div class="announce-card urgent" style="margin-bottom:10px">
+      <div class="announce-hd"><span class="announce-icon">🔒</span>
+      <div><div class="announce-label">Some preferred halls closed today</div>
+      <div class="announce-text">${names} — showing open alternatives below.</div></div></div></div>`;
+  }
+
+  let visIdx=0;
+  let firstOpenRendered=false;
+
+  orderedSlugs.forEach(slug=>{
+    const isFav=favSet.has(slug);
+    const hall=HALLS.find(h=>h.slug===slug);
+
+    if(hall?.type==='residential'&&closedSlugs.has(slug)&&!openSlugs.has(slug)) return;
+
+    if(hall?.type==='venue'){html+=renderVenueCard(slug,visIdx++,isFav,closedSlugs);return;}
+    if(slug==='slifka'){
+      if(selMeal==='breakfast'||selMeal==='brunch') return;
+      html+=renderSlifkaCard(visIdx++,isFav,closedSlugs);return;
+    }
+
+    const hallData=allNutrislice.find(h=>h.slug===slug);
+    if(!hallData) return;
+
+    // Breakfast-only halls (Ezra Stiles, Hopper, Morse when not favorited):
+    // show under breakfast AND brunch (they serve both), but NOT under dinner-only or in wrong meal
+    const isBreakfastOnly=!!hallData.breakfastOnly;
+
+    const meals=hallData.meals||{};
+    const isWE=isWeekendDate(selDate);
+
+    // On weekends, split the 'breakfast' API response into two virtual slots:
+    // 'breakfast' = sections whose names contain BREAKFAST
+    // 'brunch'    = all other non-dinner sections (the main weekend lunch service)
+    let mealKeys;
+    if(selMeal==='all'){
+      mealKeys=Object.keys(meals);
+    } else if(isWE&&selMeal==='brunch'){
+      mealKeys=['breakfast']; // pull from the breakfast API response, filtered below
+    } else if(isWE&&selMeal==='lunch'){
+      mealKeys=[]; // no lunch on weekends
+    } else {
+      mealKeys=Object.keys(meals).filter(k=>k===selMeal);
+    }
+
+    // Status line (never closed here since we skipped those above)
+    const status=hallOpenStatus(hall,closedSlugs);
+    const statusColor=status.open?'dot-open':status.soon?'dot-soon':'dot-closed';
+
+    // Today's hours for this hall
+    const todayHours=getHallHoursToday(hall);
+
+    // Auto-open first fav only
+    const isFirstOpen=isFav&&!firstOpenRendered;
+    if(isFirstOpen) firstOpenRendered=true;
+    const autoOpen=isFirstOpen;
+    const cardDelay=visIdx*30;
+
+    // Special event badge?
+    const todayEvents=(closureData?.specialEvents||[]).filter(e=>{
+      const s=new Date(e.start),en=new Date(e.end);s.setHours(0,0,0,0);
+      const now=new Date();now.setHours(0,0,0,0);
+      return s<=now&&en>=now&&e.hallSlugs.includes(slug);
+    });
+    const eventBadge=todayEvents.length?`<span class="event-badge">✨ ${todayEvents[0].text.slice(0,28)}</span>`:'';
+
+    if(!mealKeys.length){
+      visIdx++;
+      html+=`<div class="hcard${autoOpen?' open':''}${isFav?' fav':''}" id="hc-${slug}" style="animation-delay:${cardDelay}ms">
+        <div class="hhead" onclick="toggleHall('${slug}')"><div style="flex:1;min-width:0">
+          <div class="hname-row"><span class="hname">${hallData.name}</span><span class="hstar">★</span></div>
+          <div class="hstatus"><span class="hstatus-dot ${statusColor}"></span><span style="font-size:11px;color:var(--t2)">${status.text}</span></div>
+        </div><span class="chev">›</span></div>
+        <div class="mitems"><div class="closed-row">No data</div></div></div>`;
+      return;
+    }
+
+    // Build meal content first, then write card (avoids unclosed HTML on early return)
+    let mealsHtml='';
+    mealKeys.forEach(mk=>{
+      const meal=meals[mk];if(!meal)return;
+      let sections=meal.sections||[];
+
+      // Weekend breakfast filter: skip halls without weekend breakfast hours
+      if(isWE&&mk==='breakfast'&&selMeal==='breakfast'){
+        if(!hall?.hours?.weekend?.breakfast) return;
+      }
+
+      const sorted=sectionSortWithOrder(sections,mk,settings.catGroupOrder);
+      const visible=sorted.filter(s=>!isSectionHidden(s.name,hiddenSet));
+      const hasItems=visible.some(s=>(s.items||[]).length>0);
+
+      const mealDisplayName=isWE&&mk==='breakfast'?(selMeal==='breakfast'?'Breakfast':'Brunch'):mk[0].toUpperCase()+mk.slice(1);
+      mealsHtml+=`<span class="meal-label ${mealLabelMap[mk]||'ml-l'}">${mealDisplayName}</span>`;
+      if(!hasItems){mealsHtml+=`<div class="closed-row">Not available</div>`;return;}
+      visible.forEach(sec=>{
+        let items=sec.items||[];
+        if(selFilter!=='all') items=items.filter(i=>{
+          const tags=i.tags||[];
+          if(selFilter==='vegetarian') return tags.includes('vegetarian')||tags.includes('vegan');
+          return tags.includes(selFilter);
+        });
+        if(!items.length) return;
+        mealsHtml+=`<div class="msec"><div class="msec-label">${sec.name}</div>`;
+        items.forEach(item=>{
+          const tags=item.tags||[];let t='';
+          if(tags.includes('vegan'))           t+='<span class="tag tv">VE</span>';
+          else if(tags.includes('vegetarian')) t+='<span class="tag tvg">VG</span>';
+          if(tags.includes('gluten-free'))     t+='<span class="tag tgf">GF</span>';
+          if(tags.includes('halal'))           t+='<span class="tag th">HL</span>';
+          mealsHtml+=`<div class="mitem"><span class="mname">${item.name}</span><div class="mitem-r">${item.calories!=null?`<span class="mcal">${item.calories} cal</span>`:''}<div class="tags">${t}</div></div></div>`;
+        });
+        mealsHtml+=`</div>`;
+      });
+    });
+
+    // If breakfast filter on weekend yielded nothing for this hall, skip it entirely
+    if(isWE&&selMeal==='breakfast'&&!mealsHtml) return;
+
+    visIdx++;
+    html+=`<div class="hcard${autoOpen?' open':''}${isFav?' fav':''}" id="hc-${slug}" style="animation-delay:${cardDelay}ms">
+      <div class="hhead" onclick="toggleHall('${slug}')">
+        <div style="flex:1;min-width:0">
+          <div class="hname-row"><span class="hname">${hallData.name}</span><span class="hstar">★</span></div>
+          ${eventBadge?`<div style="margin-top:3px">${eventBadge}</div>`:''}
+          <div class="hstatus">
+            <span class="hstatus-dot ${statusColor}"></span>
+            <span style="font-size:11px;color:var(--t2)">${status.text}${todayHours?` · ${todayHours}`:''}</span>
+          </div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+      <div class="mitems">${mealsHtml||'<div class="closed-row">No data</div>'}</div></div>`;
+  });
+
+  document.getElementById('content').innerHTML=html||'<div style="padding:40px 20px;text-align:center;color:var(--t3);font-size:14px">No dining halls to show</div>';
+}
+
+function toggleHall(slug){document.getElementById('hc-'+slug)?.classList.toggle('open');}
+
+function safeRender(){
+  try{ render(); }
+  catch(e){
+    console.error('render() threw:',e);
+    document.getElementById('content').innerHTML=`<div style="padding:20px;font-size:13px;color:var(--red)">⚠️ Render error: ${e.message}<br><small style="color:var(--t3)">${e.stack?.split('\n')[1]||''}</small></div>`;
+  }
+}
+
+// ── Map tab ───────────────────────────────────────────────────────────────────
+let _mapSheet=null;
+function openMaps(slug){
+  const hall=HALLS.find(h=>h.slug===slug);
+  if(!hall) return;
+  const addr=hall.addr||hall.name+' Yale New Haven CT';
+  const q=encodeURIComponent(addr);
+  // Remove any existing sheet
+  if(_mapSheet) _mapSheet.remove();
+  const sheet=document.createElement('div');
+  sheet.style.cssText='position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(0,0,0,.4);';
+  sheet.innerHTML=`
+    <div style="background:#fff;border-radius:18px 18px 0 0;padding:18px 16px max(28px,env(safe-area-inset-bottom));max-width:390px;width:100%;margin:0 auto;">
+      <div style="font-size:13px;font-weight:700;color:var(--t2);text-align:center;margin-bottom:14px;letter-spacing:.3px">OPEN IN MAPS</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;text-align:center">${hall.name}</div>
+      <a href="https://maps.apple.com/?q=${q}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f2f2f7;border-radius:12px;text-decoration:none;color:#1c1c1e;font-size:14px;font-weight:500;margin-bottom:8px;">
+        <span style="font-size:22px">🗺️</span><span>Apple Maps</span>
+      </a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f2f2f7;border-radius:12px;text-decoration:none;color:#1c1c1e;font-size:14px;font-weight:500;margin-bottom:16px;">
+        <span style="font-size:22px">📍</span><span>Google Maps</span>
+      </a>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="width:100%;padding:13px;background:#e5e5ea;border:none;border-radius:12px;font-size:15px;font-weight:600;color:#1c1c1e;cursor:pointer;">Cancel</button>
+    </div>`;
+  sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.remove();});
+  document.body.appendChild(sheet);
+  _mapSheet=sheet;
+}
+
+// ── Geolocation ───────────────────────────────────────────────────────────────
+let userLocation=null; // {lat, lng} or null
+let locLoading=false;
+
+function haversineDist(lat1,lng1,lat2,lng2){
+  // Returns distance in miles
+  const R=3958.8,toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function hallDist(hall){
+  if(!userLocation||hall.lat==null||hall.lng==null) return null;
+  return haversineDist(userLocation.lat,userLocation.lng,hall.lat,hall.lng);
+}
+
+function fmtDist(miles){
+  if(miles==null) return '';
+  if(miles<0.1) return `${Math.round(miles*5280)} ft`;
+  return `${miles.toFixed(2)} mi`;
+}
+
+function setLocStatus(msg,isError){
+  const color=isError?'var(--red)':'var(--t3)';
+  ['locStatus','libLocStatus'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent=msg||'Tap 📍 for directions';el.style.color=color;}
+  });
+}
+
+// ── Library data & rendering ──────────────────────────────────────────────────
+let libraryData=null; // cached fetch result
+
+async function fetchLibraries(){
+  if(libraryData) return libraryData;
+  try{
+    const r=await fetch('/api/libraries');
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    libraryData=await r.json();
+    return libraryData;
+  }catch(e){
+    console.warn('Library fetch failed:',e.message);
+    return null;
+  }
+}
+
+// Parse "8am - 10pm" or "8:30am - 10pm" → closing minutes since midnight
+function parseLibClose(rendered){
+  if(!rendered||rendered==='Closed') return 0;
+  // Look for the "to" part: "Xam - Ypm"
+  const m=rendered.match(/[–\-]\s*(\d+)(?::(\d+))?\s*(am|pm)/i);
+  if(!m) return 0;
+  let h=parseInt(m[1]),min=parseInt(m[2]||'0'),ap=m[3].toLowerCase();
+  if(ap==='pm'&&h!==12) h+=12;
+  if(ap==='am'&&h===12) h=0;
+  return h*60+min;
+}
+
+function libOpenStatus(lib){
+  if(lib.open===null||lib.open===undefined) return {open:null,text:'See website'};
+  if(lib.closedToday||!lib.open) return {open:false,text:'Closed today'};
+  // Try rendered first, then timesHours
+  let rendered=lib.rendered||'';
+  if(!rendered && lib.timesHours?.length){
+    const h=lib.timesHours[0];
+    if(h.from&&h.to) rendered=`${h.from} - ${h.to}`;
+  }
+  if(!rendered) return {open:true,text:'Open today'};
+  const closeMin=parseLibClose(rendered);
+  if(closeMin>0){
+    const now=new Date(),mins=now.getHours()*60+now.getMinutes();
+    const left=closeMin-mins;
+    if(left<=0) return {open:false,text:'Closed'};
+    if(left<=30) return {open:true,text:`Closes at ${fmtMins(closeMin)} (${left}m)`,soon:true};
+    return {open:true,text:`Open until ${fmtMins(closeMin)}`,hours:rendered};
+  }
+  return {open:true,text:rendered};
+}
+
+function onLibSortChange(){
+  const mode=document.getElementById('libSort')?.value;
+  if(mode==='closest'||mode==='furthest') requestLocation(()=>renderLibraries());
+  else renderLibraries();
+}
+
+async function renderLibraries(){
+  const sortMode=document.getElementById('libSort')?.value||'status';
+  const el=document.getElementById('libContent');
+  if(!libraryData) el.innerHTML='<div class="loading-wrap"><div class="spinner"></div><div class="load-title" style="font-size:13px">Loading library hours…</div></div>';
+
+  const data=await fetchLibraries();
+  if(!data){
+    el.innerHTML='<div style="padding:24px 16px;text-align:center;color:var(--t2);font-size:13px">Could not load library hours.<br><a href="https://web.library.yale.edu/buildings" target="_blank" style="color:var(--yale-mid)">View at library.yale.edu →</a></div>';
+    return;
+  }
+
+  // Separate any sub-rooms LibCal returns (rare) from top-level
+  const topLevel=[];
+  data.locations.forEach(lib=>{ if(!lib.parent) topLevel.push(lib); });
+
+  function libDist(lib){
+    if(!userLocation||lib.lat==null||lib.lng==null) return null;
+    return haversineDist(userLocation.lat,userLocation.lng,lib.lat,lib.lng);
+  }
+
+  topLevel.sort((a,b)=>{
+    if(sortMode==='abc') return a.name.localeCompare(b.name);
+    if(sortMode==='closest'||sortMode==='furthest'){
+      const da=libDist(a)??Infinity,db=libDist(b)??Infinity;
+      return sortMode==='closest'?da-db:db-da;
+    }
+    if(sortMode==='closes'){
+      const aClosed=a.closedToday||!a.open,bClosed=b.closedToday||!b.open;
+      if(aClosed&&!bClosed) return 1; if(!aClosed&&bClosed) return -1;
+      return parseLibClose(b.rendered||'')-parseLibClose(a.rendered||'');
+    }
+    // status: open first, then by close time, closed last
+    const aOpen=a.open===true&&!a.closedToday,bOpen=b.open===true&&!b.closedToday;
+    const aUnk=a.open===null,bUnk=b.open===null;
+    if(aOpen&&!bOpen) return -1; if(!aOpen&&bOpen) return 1;
+    if(!aUnk&&bUnk) return -1; if(aUnk&&!bUnk) return 1;
+    if(aOpen&&bOpen) return parseLibClose(b.rendered||'')-parseLibClose(a.rendered||'');
+    return a.name.localeCompare(b.name);
+  });
+
+  let html='';
+  topLevel.forEach(lib=>{
+    const status=libOpenStatus(lib);
+    const isClosed=status.open===false;
+    const isUnknown=status.open===null;
+    const dotCls=isClosed?'dot-closed':status.soon?'dot-soon':isUnknown?'dot-closed':'dot-open';
+    const dist=libDist(lib);
+    const distStr=dist!=null?` <span style="font-size:11px;color:var(--t3);font-weight:400">${fmtDist(dist)}</span>`:'';
+    const mapsQ=encodeURIComponent(lib.name+', New Haven CT');
+    const mapsUrl=lib.lat&&lib.lng?`https://maps.apple.com/?ll=${lib.lat},${lib.lng}&q=${mapsQ}`:`https://maps.apple.com/?q=${mapsQ}`;
+    const subs=[];  // reserved for future use if LibCal returns sub-rooms
+
+    // Build hours display string
+    let hoursStr=lib.rendered||'';
+    if(!hoursStr&&lib.timesHours?.length){const h=lib.timesHours[0];if(h.from&&h.to)hoursStr=`${h.from} – ${h.to}`;}
+
+    html+=`<div class="map-hall-card${isClosed?' map-hall-closed':''}">
+      <div style="flex:1;min-width:0">
+        <div class="map-hall-name">
+          <a href="${lib.url}" target="_blank" style="color:inherit;text-decoration:none">${lib.name}</a>${distStr}
+        </div>
+        <div class="map-hall-status">
+          <span class="hstatus-dot ${dotCls}"></span>
+          <span>${status.text}</span>
+          ${hoursStr&&!isClosed?`<span style="color:var(--t3);margin-left:4px">· ${hoursStr}</span>`:''}
+        </div>
+        <div class="map-hall-addr">${lib.addr}</div>
+      </div>
+      <button class="map-open-btn${isClosed?' map-open-btn-closed':''}" onclick="window.open('${mapsUrl}','_blank')">📍</button>
+    </div>`;
+  });
+
+  html+=`<div style="text-align:center;padding:14px 12px 4px"><a href="https://web.library.yale.edu/buildings" target="_blank" style="font-size:12px;color:var(--yale-mid)">Full hours at library.yale.edu →</a></div>`;
+  el.innerHTML=html;
+}
+
+function requestLocation(cb){
+  if(userLocation){cb(userLocation);return;}
+  if(!navigator.geolocation){setLocStatus('Location unavailable',true);cb(null);return;}
+  if(locLoading) return;
+  locLoading=true;
+  setLocStatus('Getting location…',false);
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      locLoading=false;
+      userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      setLocStatus('',false);
+      cb(userLocation);
+    },
+    err=>{
+      locLoading=false;
+      const msg=err.code===1?'Location permission denied':err.code===2?'Location unavailable':'Location timed out';
+      setLocStatus(msg,true);
+      cb(null);
+    },
+    {enableHighAccuracy:false,timeout:8000,maximumAge:120000}
+  );
+}
+
+function onMapSortChange(){
+  const mode=document.getElementById('mapSort')?.value;
+  if(mode==='closest'||mode==='furthest'){
+    requestLocation(()=>renderMap());
+  } else {
+    renderMap();
+  }
+}
+
+function renderMap(){
+  const {closedSlugs, openSlugs}=getClosedSlugsForDate(new Date());
+  const favSet=new Set(settings.favorites);
+  const allHalls=HALLS.filter(h=>h.slug!=='steep');
+  const sortMode=document.getElementById('mapSort')?.value||'status';
+
+  function firstOpenMins(hall){
+    const dow=new Date().getDay(),isWeekend=dow===0||dow===6;
+    const slots=isWeekend?hall.hours?.weekend:hall.hours?.weekday;
+    if(!slots) return 9999;
+    let earliest=9999;
+    Object.values(slots).forEach(str=>{
+      const m=str?.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if(!m) return;
+      let h=parseInt(m[1]),min=parseInt(m[2]),ap=m[3].toUpperCase();
+      if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0;
+      earliest=Math.min(earliest,h*60+min);
+    });
+    return earliest;
+  }
+  function lastCloseMins(hall){
+    const dow=new Date().getDay(),isWeekend=dow===0||dow===6;
+    const slots=isWeekend?hall.hours?.weekend:hall.hours?.weekday;
+    if(!slots) return 0;
+    let latest=0;
+    Object.values(slots).forEach(str=>{
+      const m=str?.match(/[–\-]\s*(\d+):(\d+)\s*(AM|PM)/i);
+      if(!m) return;
+      let h=parseInt(m[1]),min=parseInt(m[2]),ap=m[3].toUpperCase();
+      if(ap==='PM'&&h!==12) h+=12; if(ap==='AM'&&h===12) h=0;
+      latest=Math.max(latest,h*60+min);
+    });
+    return latest;
+  }
+
+  const sorted=[...allHalls].sort((a,b)=>{
+    const aClosed=closedSlugs.has(a.slug)&&!openSlugs.has(a.slug);
+    const bClosed=closedSlugs.has(b.slug)&&!openSlugs.has(b.slug);
+
+    if(sortMode==='abc') return a.name.localeCompare(b.name);
+
+    if(sortMode==='closest'||sortMode==='furthest'){
+      const da=hallDist(a)??Infinity, db=hallDist(b)??Infinity;
+      return sortMode==='closest'?da-db:db-da;
+    }
+    if(sortMode==='opens'){
+      if(aClosed&&!bClosed) return 1; if(!aClosed&&bClosed) return -1;
+      return firstOpenMins(a)-firstOpenMins(b);
+    }
+    if(sortMode==='closes'){
+      if(aClosed&&!bClosed) return 1; if(!aClosed&&bClosed) return -1;
+      return lastCloseMins(b)-lastCloseMins(a);
+    }
+    // default: open now → favorites → rest → closed
+    if(!aClosed&&bClosed) return -1; if(aClosed&&!bClosed) return 1;
+    const aFav=favSet.has(a.slug),bFav=favSet.has(b.slug);
+    if(aFav&&!bFav) return -1; if(!aFav&&bFav) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html='';
+  sorted.forEach(hall=>{
+    const isClosed=closedSlugs.has(hall.slug)&&!openSlugs.has(hall.slug);
+    const status=hallOpenStatus(hall,closedSlugs);
+    const dotCls=isClosed?'dot-closed':status.open?'dot-open':status.soon?'dot-soon':'dot-closed';
+    const isFav=favSet.has(hall.slug);
+    const dist=hallDist(hall);
+    const distStr=dist!=null?`<span style="font-size:11px;color:var(--t3);margin-left:6px">${fmtDist(dist)}</span>`:'';
+
+    const dow=new Date().getDay(),isWeekend=dow===0||dow===6;
+    const slots=isWeekend?hall.hours?.weekend:hall.hours?.weekday;
+    const hoursLines=slots?Object.values(slots).filter(Boolean).join(' · '):'';
+
+    html+=`<div class="map-hall-card${isClosed?' map-hall-closed':''}">
+      <div style="flex:1;min-width:0">
+        <div class="map-hall-name">${hall.name}${isFav?'<span style="font-size:10px;color:var(--yale-blue);margin-left:4px">★</span>':''}${distStr}</div>
+        <div class="map-hall-status"><span class="hstatus-dot ${dotCls}"></span>${isClosed?'Closed today':status.text}</div>
+        ${hoursLines?`<div style="font-size:10.5px;color:var(--t3);margin-top:2px">${hoursLines}</div>`:''}
+        <div class="map-hall-addr">${hall.addr||''}</div>
+      </div>
+      <button class="map-open-btn${isClosed?' map-open-btn-closed':''}" onclick="openMaps('${hall.slug}')">📍</button>
+    </div>`;
+  });
+
+  document.getElementById('mapContent').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--t3)">No halls to show</div>';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  loadSettings();buildDates();buildMealBar();applyAutoMeal();updateFilterChips();updateHallChip();
+  if(!settings.onboarded){initOnboarding();}
+  else{buildSettingsUI();fetchAll();}
+});
+</script>
+</body>
+</html>
