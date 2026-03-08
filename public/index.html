@@ -866,8 +866,10 @@ function showTab(tab){
     if(!userLocation&&!locLoading) requestLocation(()=>renderMap());
   }
   if(tab==='lib'){
-    renderLibraries();
+    const libSortEl=document.getElementById('libSort');
+    if(libSortEl&&libSortEl.value==='status') libSortEl.value='closest';
     if(!userLocation&&!locLoading) requestLocation(()=>renderLibraries());
+    else renderLibraries();
   }
 }
 
@@ -1857,8 +1859,8 @@ async function renderLibraries(){
     const mapsQ=encodeURIComponent(lib.name+', New Haven CT');
     const mapsUrl=lib.lat&&lib.lng?`https://maps.apple.com/?ll=${lib.lat},${lib.lng}&q=${mapsQ}`:`https://maps.apple.com/?q=${mapsQ}`;
 
-    // Best hours string: from status (which already resolved timesHours) or lib.rendered
     const hoursStr=status.hours||lib.rendered||'';
+    const nextOpenStr=isClosed&&lib.nextOpen?('Opens '+lib.nextOpen.date+' · '+lib.nextOpen.hours):'';
 
     html+=`<div class="map-hall-card${isClosed?' map-hall-closed':''}">
       <div style="flex:1;min-width:0">
@@ -1870,6 +1872,7 @@ async function renderLibraries(){
           <span>${status.text}</span>
           ${hoursStr&&!isClosed?`<span style="color:var(--t3);margin-left:4px">· ${hoursStr}</span>`:''}
         </div>
+        ${nextOpenStr?`<div style="font-size:11px;color:var(--yale-mid);margin-top:2px">${nextOpenStr}</div>`:''}
         <div class="map-hall-addr">${lib.addr}</div>
       </div>
       <button class="map-open-btn${isClosed?' map-open-btn-closed':''}" onclick="window.open('${mapsUrl}','_blank')">📍</button>

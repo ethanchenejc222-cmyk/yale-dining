@@ -465,40 +465,122 @@ async function scrapeLibraryHours() {
   return results;
 }
 
+// Scrape ALL weeks from schedule.yale.edu/hours → { 'YYYY-MM-DD': { 'Bass': '10am-6pm', ... } }
+async function scrapeAllWeeks() {
+  const r = await fetch(HOURS_URL, { headers: { 'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/122 Safari/537.36', 'Accept':'text/html,*/*' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const html = await r.text();
+
+  const byDate = {}; // 'YYYY-MM-DD' → { libName: hoursText }
+
+  const tableRe = /<table[\s\S]*?<\/table>/gi;
+  let tableMatch;
+  while ((tableMatch = tableRe.exec(html)) !== null) {
+    const tbl = tableMatch[0];
+    // Parse header <th> cells to get dates
+    const thCells = [];
+    const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+    let thMatch;
+    while ((thMatch = thRe.exec(tbl)) !== null) thCells.push(stripTags(thMatch[1]));
+    if (thCells.length < 2) continue;
+
+    // Parse date strings from headers like "Mar 07 Saturday"
+    // Map column index → ISO date string
+    const colDates = [];
+    const monthMap = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    for (const cell of thCells) {
+      const m = cell.match(/([A-Z][a-z]{2})\s+(\d{1,2})\s+/);
+      if (m && monthMap[m[1]] !== undefined) {
+        const now = new Date();
+        const mo = monthMap[m[1]];
+        const yr = (mo < now.getMonth() - 3) ? now.getFullYear()+1 : now.getFullYear();
+        const d = new Date(yr, mo, parseInt(m[2]));
+        colDates.push(d.toISOString().slice(0,10));
+      } else {
+        colDates.push(null);
+      }
+    }
+    if (!colDates.some(Boolean)) continue;
+
+    // Parse rows
+    const rowRe2 = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
+    while ((rowMatch = rowRe2.exec(tbl)) !== null) {
+      const row = rowMatch[1];
+      const cells = [];
+      const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      let cellMatch;
+      while ((cellMatch = cellRe.exec(row)) !== null) cells.push(stripTags(cellMatch[1]));
+      if (cells.length < 2) continue;
+      const libName = cells[0];
+      cells.forEach((hoursText, i) => {
+        if (i === 0 || !colDates[i] || !hoursText) return;
+        if (!byDate[colDates[i]]) byDate[colDates[i]] = {};
+        // Only store first match per lib per date (don't overwrite with sub-rooms)
+        if (!byDate[colDates[i]][libName]) byDate[colDates[i]][libName] = hoursText;
+      });
+    }
+  }
+  return byDate;
+}
+
+function normalizeHours(raw) {
+  if (!raw) return '';
+  let s = raw.replace(/\(.*?\)/g,'').replace(/[^;]+only\b/gi,'').trim();
+  s = s.split(';')[0].trim();
+  // strip trailing commas/dots
+  s = s.replace(/[,\.]+$/, '').trim();
+  return s;
+}
+
+function isClosedText(s) {
+  if (!s) return true;
+  const t = s.toLowerCase().trim();
+  return t === 'closed' || t === '–' || t === '-' || t === '' || t.startsWith('closed');
+}
+
+// Find next open date string and hours for a library given byDate data
+function findNextOpen(libKey, byDate, todayIso) {
+  const dates = Object.keys(byDate).sort();
+  for (const d of dates) {
+    if (d <= todayIso) continue;
+    const matchKey = Object.keys(byDate[d]).find(k => k.toLowerCase().includes(libKey.toLowerCase()));
+    const hoursText = matchKey ? byDate[d][matchKey] : '';
+    if (!isClosedText(hoursText)) {
+      // Format like "Mon Mar 9"
+      const dt = new Date(d + 'T12:00:00');
+      const dayAbbr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+      const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()];
+      return { date: `${dayAbbr} ${mo} ${dt.getDate()}`, hours: normalizeHours(hoursText) };
+    }
+  }
+  return null;
+}
 
 app.get('/api/libraries-raw', async (req,res) => {
   try {
-    const scraped = await scrapeLibraryHours();
-    res.json(scraped);
+    const all = await scrapeAllWeeks();
+    res.json(all);
   } catch(err) { res.status(500).json({error:err.message}); }
 });
 
 app.get('/api/libraries', async (req,res) => {
-  const today = todayKey()+'v5';
-  const f = cacheFile('libraries', today);
+  const todayIso = todayKey();
+  const cacheKey = todayIso+'v6';
+  const f = cacheFile('libraries', cacheKey);
   const cached = readCache(f);
-  if (cached?.date === today) return res.json(cached.data);
+  if (cached?.date === cacheKey) return res.json(cached.data);
 
   try {
-    const scraped = await scrapeLibraryHours();
+    const byDate = await scrapeAllWeeks();
+    const todayRows = byDate[todayIso] || {};
 
     const locations = LIBRARIES.map(lib => {
-      // Find matching row by key substring match against scraped row names
-      const matchKey = Object.keys(scraped).find(k => k.toLowerCase().includes(lib.key.toLowerCase()));
-      const hoursText = matchKey ? scraped[matchKey] : '';
-      const isClosed = !hoursText || hoursText.toLowerCase() === 'closed' || hoursText === '–' || hoursText === '-';
-      const isOpen = !isClosed;
-
-      // Normalize hours string: keep first time range (some cells have complex text)
-      // e.g. "8:30am – 11pm" or "8am-4pm (early closure due to...)" → "8:30am – 11pm"
-      let rendered = hoursText;
-      if (rendered) {
-        // Strip parenthetical notes
-        rendered = rendered.replace(/\(.*?\)/g,'').trim();
-        // Take just the first time segment if multiple (split on semicolons)
-        rendered = rendered.split(';')[0].trim();
-      }
-      if (isClosed) rendered = '';
+      const matchKey = Object.keys(todayRows).find(k => k.toLowerCase().includes(lib.key.toLowerCase()));
+      const hoursText = matchKey ? todayRows[matchKey] : '';
+      const isClosed = isClosedText(hoursText);
+      const rendered = isClosed ? '' : normalizeHours(hoursText);
+      const nextOpen = isClosed ? findNextOpen(lib.key, byDate, todayIso) : null;
 
       return {
         name: lib.name,
@@ -506,19 +588,20 @@ app.get('/api/libraries', async (req,res) => {
         lat: lib.lat,
         lng: lib.lng,
         url: lib.url,
-        open: isOpen,
+        open: !isClosed,
         rendered,
         closedToday: isClosed,
+        nextOpen, // { date: 'Mon Mar 9', hours: '8:30am – 11pm' } or null
       };
     });
 
-    const data = { date: today, locations };
-    writeCache(f, { date: today, data });
+    const data = { date: cacheKey, locations };
+    writeCache(f, { date: cacheKey, data });
     res.json(data);
   } catch(err) {
     if (cached) return res.json(cached.data);
-    const fallback = LIBRARIES.map(lib => ({ ...lib, open: null, rendered: '', closedToday: null }));
-    res.json({ date: today, locations: fallback, error: err.message });
+    const fallback = LIBRARIES.map(lib => ({ ...lib, open: null, rendered: '', closedToday: null, nextOpen: null }));
+    res.json({ date: cacheKey, locations: fallback, error: err.message });
   }
 });
 
