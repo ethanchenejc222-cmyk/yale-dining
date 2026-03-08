@@ -370,123 +370,147 @@ app.get('/api/venue/:venue', async (req,res) => {
   }
 });
 
-// ── Library Hours – LibCal per-library fetch – daily disk cache ───────────────
-// Yale uses iid=457. Each library has a specific lid. We fetch each individually
-// because the bulk lid=0 endpoint has unreliable open/rendered fields.
-const LIBCAL_BASE = 'https://api3.libcal.com/api_hours_today.php?iid=457&format=json&lid=';
+// ── Library Hours – scrape schedule.yale.edu/hours ───────────────────────────
+// Yale's own LibCal-hosted hours page — far more reliable than the raw API
+const HOURS_URL = 'https://schedule.yale.edu/hours/';
 
+// Known library metadata keyed by the name fragment that appears in the hours table
 const LIBRARIES = [
-  { lid:384,  name:'Bass Library',                          addr:'130 Wall St',                lat:41.3113, lng:-72.9281, url:'https://library.yale.edu/bass' },
-  { lid:3604, name:'Sterling Memorial Library',             addr:'120 High St',                lat:41.3116, lng:-72.9262, url:'https://web.library.yale.edu/building/sterling-memorial-library' },
-  { lid:3605, name:'Gilmore Music Library',                 addr:'120 High St (in Sterling)',  lat:41.3116, lng:-72.9262, url:'https://library.yale.edu/visit-and-study/libraries-locations/irving-s-gilmore-music-library' },
-  { lid:3606, name:'Manuscripts & Archives',                addr:'120 High St (in Sterling)',  lat:41.3116, lng:-72.9262, url:'https://web.library.yale.edu/mssa' },
-  { lid:3607, name:'Beinecke Rare Book Library',            addr:'121 Wall St',                lat:41.3114, lng:-72.9267, url:'https://beinecke.library.yale.edu' },
-  { lid:3608, name:'Haas Arts Library',                     addr:'190 York St',                lat:41.3072, lng:-72.9329, url:'https://web.library.yale.edu/arts' },
-  { lid:395,  name:'Marx Science & Social Science Library', addr:'219 Prospect St',            lat:41.3203, lng:-72.9245, url:'https://library.yale.edu/marx' },
-  { lid:3609, name:'Cushing/Whitney Medical Library',       addr:'333 Cedar St',               lat:41.3031, lng:-72.9346, url:'https://library.medicine.yale.edu' },
-  { lid:3610, name:'Lillian Goldman Law Library',           addr:'127 Wall St',                lat:41.3110, lng:-72.9272, url:'https://library.law.yale.edu' },
-  { lid:396,  name:'Divinity Library',                      addr:'409 Prospect St',            lat:41.3229, lng:-72.9266, url:'https://library.yale.edu/divinity' },
-  { lid:3611, name:'Classics Library',                      addr:'344 College St',             lat:41.3155, lng:-72.9310, url:'https://library.yale.edu/classics' },
-  { lid:3612, name:'Lewis Walpole Library',                 addr:'154 Main St, Farmington CT', lat:41.7184, lng:-72.8293, url:'https://library.yale.edu/walpole' },
-  { lid:3613, name:'Yale Center for British Art',           addr:'1080 Chapel St',             lat:41.3067, lng:-72.9307, url:'https://britishart.yale.edu/reference-library-and-photo-archives' },
+  { key:'Bass',              name:'Bass Library',                          addr:'130 Wall St',                lat:41.3113, lng:-72.9281, url:'https://library.yale.edu/bass' },
+  { key:'Beinecke',         name:'Beinecke Rare Book Library',            addr:'121 Wall St',                lat:41.3114, lng:-72.9267, url:'https://beinecke.library.yale.edu' },
+  { key:'Classics',         name:'Classics Library',                      addr:'344 College St',             lat:41.3155, lng:-72.9310, url:'https://library.yale.edu/classics' },
+  { key:'Cushing',          name:'Cushing/Whitney Medical Library',       addr:'333 Cedar St',               lat:41.3031, lng:-72.9346, url:'https://library.medicine.yale.edu' },
+  { key:'Divinity',         name:'Divinity Library',                      addr:'409 Prospect St',            lat:41.3229, lng:-72.9266, url:'https://library.yale.edu/divinity' },
+  { key:'Gilmore Music',    name:'Gilmore Music Library',                 addr:'120 High St',                lat:41.3116, lng:-72.9262, url:'https://library.yale.edu/visit-and-study/libraries-locations/irving-s-gilmore-music-library' },
+  { key:'Haas Arts',        name:'Haas Arts Library',                     addr:'190 York St',                lat:41.3072, lng:-72.9329, url:'https://web.library.yale.edu/arts' },
+  { key:'Lewis Walpole',    name:'Lewis Walpole Library',                 addr:'154 Main St, Farmington CT', lat:41.7184, lng:-72.8293, url:'https://library.yale.edu/walpole' },
+  { key:'Lillian Goldman',  name:'Lillian Goldman Law Library',           addr:'127 Wall St',                lat:41.3110, lng:-72.9272, url:'https://library.law.yale.edu' },
+  { key:'Marx',             name:'Marx Science & Social Science Library', addr:'219 Prospect St',            lat:41.3203, lng:-72.9245, url:'https://library.yale.edu/marx' },
+  { key:'Sterling',         name:'Sterling Memorial Library',             addr:'120 High St',                lat:41.3116, lng:-72.9262, url:'https://web.library.yale.edu/building/sterling-memorial-library' },
+  { key:'Yale Center for British Art', name:'Yale Center for British Art',addr:'1080 Chapel St',            lat:41.3067, lng:-72.9307, url:'https://britishart.yale.edu/reference-library-and-photo-archives' },
 ];
-
-// Note: lid values for Sterling, Gilmore, Manuscripts, Beinecke, Haas, Med, Law,
-// Classics, Walpole, YCBA are estimated — the /api/libraries-raw endpoint will
-// show the real values. Bass=384, Marx=395, Divinity=396 are confirmed from Yale docs.
-
-async function fetchOneLibrary(lib) {
-  const url = LIBCAL_BASE + lib.lid;
-  const r = await fetch(url, { headers:{ 'User-Agent':'Mozilla/5.0','Accept':'application/json' } });
-  if (!r.ok) throw new Error(`HTTP ${r.status} for lid=${lib.lid}`);
-  const json = await r.json();
-  // Response is { locations: [{ lid, name, open, rendered, times }] }
-  const loc = (json.locations || [])[0];
-  if (!loc) return { ...lib, open: null, rendered: '', closedToday: null };
-
-  const openRaw = loc.open;
-  const isOpen = openRaw === true || openRaw === 1 || openRaw === '1';
-  const isUnknown = openRaw === undefined || openRaw === null;
-
-  let rendered = (loc.rendered || '').trim()
-    .replace(/&amp;/g,'&').replace(/&ndash;/g,'–').replace(/&#8211;/g,'–')
-    .replace(/<[^>]+>/g,'').trim();
-
-  // If rendered still says "Closed" but open=true, try times.hours
-  const timesHours = loc.times?.hours || [];
-  if (isOpen && (!rendered || rendered.toLowerCase() === 'closed') && timesHours.length) {
-    const h = timesHours[0];
-    if (h.from && h.to) rendered = `${h.from} - ${h.to}`;
-  }
-
-  const closedToday = isUnknown ? null : !isOpen;
-  return {
-    ...lib,
-    open: isUnknown ? null : isOpen,
-    rendered: (isOpen && rendered.toLowerCase() !== 'closed') ? rendered : '',
-    closedToday,
-  };
-}
 
 const todayKey = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-// Raw debug: fetch bulk lid=0 so we can see what LibCal actually returns
+function stripTags(s) {
+  return s.replace(/<[^>]+>/g,' ')
+    .replace(/&amp;/g,'&').replace(/&ndash;/g,'–').replace(/&#8211;/g,'–')
+    .replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+}
+
+// Scrape today's hours from the HTML table on schedule.yale.edu/hours
+async function scrapeLibraryHours() {
+  const r = await fetch(HOURS_URL, { headers: { 'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/122 Safari/537.36', 'Accept':'text/html,*/*' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const html = await r.text();
+
+  // Build today's date label as it appears in the table header, e.g. "Mar 07 Saturday"
+  const today = new Date();
+  const monthAbbr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][today.getMonth()];
+  const dayNum = today.getDate();
+  const todayLabel = `${monthAbbr} ${String(dayNum).padStart(2,'0')}`;
+  const todayLabelAlt = `${monthAbbr} ${dayNum}`;
+
+  // The page has multiple <table> elements (one per week). Find the one containing today's date.
+  const tableRe = /<table[\s\S]*?<\/table>/gi;
+  let tableMatch;
+  let todayColIdx = -1;
+  let targetTableHtml = null;
+
+  while ((tableMatch = tableRe.exec(html)) !== null) {
+    const tbl = tableMatch[0];
+    const thCells = [];
+    const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+    let thMatch;
+    while ((thMatch = thRe.exec(tbl)) !== null) thCells.push(stripTags(thMatch[1]));
+    const idx = thCells.findIndex(h => h.includes(todayLabel) || h.includes(todayLabelAlt));
+    if (idx !== -1) { todayColIdx = idx; targetTableHtml = tbl; break; }
+  }
+
+  // Fallback: search by day name if date format differs
+  if (!targetTableHtml) {
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const todayName = dayNames[today.getDay()];
+    const tableRe2 = /<table[\s\S]*?<\/table>/gi;
+    while ((tableMatch = tableRe2.exec(html)) !== null) {
+      const tbl = tableMatch[0];
+      const thCells = [];
+      const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+      let thMatch;
+      while ((thMatch = thRe.exec(tbl)) !== null) thCells.push(stripTags(thMatch[1]));
+      const idx = thCells.findIndex(h => h.includes(todayName));
+      if (idx !== -1) { todayColIdx = idx; targetTableHtml = tbl; break; }
+    }
+  }
+
+  if (!targetTableHtml || todayColIdx < 0) throw new Error(`Could not find today's column (tried: "${todayLabel}")`);
+
+  // Parse all <tr> rows from the correct table only
+  const results = {};
+  const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+  while ((rowMatch = rowRe.exec(targetTableHtml)) !== null) {
+    const row = rowMatch[1];
+    const cells = [];
+    const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let cellMatch;
+    while ((cellMatch = cellRe.exec(row)) !== null) cells.push(stripTags(cellMatch[1]));
+    if (cells.length < 2) continue;
+    const libName = cells[0];
+    const hoursText = cells[todayColIdx] || '';
+    if (libName && hoursText) results[libName] = hoursText;
+  }
+
+  if (Object.keys(results).length === 0) throw new Error('Parsed 0 rows — HTML structure may have changed');
+  return results;
+}
+
+
 app.get('/api/libraries-raw', async (req,res) => {
   try {
-    const r = await fetch('https://api3.libcal.com/api_hours_today.php?iid=457&lid=0&format=json',
-      { headers:{ 'User-Agent':'Mozilla/5.0','Accept':'application/json' } });
-    const text = await r.text();
-    res.setHeader('Content-Type','application/json');
-    res.send(text);
+    const scraped = await scrapeLibraryHours();
+    res.json(scraped);
   } catch(err) { res.status(500).json({error:err.message}); }
 });
 
 app.get('/api/libraries', async (req,res) => {
-  const today = todayKey()+'v4';
+  const today = todayKey()+'v5';
   const f = cacheFile('libraries', today);
   const cached = readCache(f);
   if (cached?.date === today) return res.json(cached.data);
 
   try {
-    // First fetch the bulk lid=0 to discover real lids and get a name→lid map
-    const bulkR = await fetch('https://api3.libcal.com/api_hours_today.php?iid=457&lid=0&format=json',
-      { headers:{ 'User-Agent':'Mozilla/5.0','Accept':'application/json' } });
-    const bulk = bulkR.ok ? await bulkR.json() : { locations: [] };
+    const scraped = await scrapeLibraryHours();
 
-    // Build a name→{lid,open,rendered,timesHours} map from bulk response
-    const bulkMap = {};
-    for (const loc of (bulk.locations || [])) {
-      const openRaw = loc.open;
-      const isOpen = openRaw === true || openRaw === 1 || openRaw === '1';
-      const isUnknown = openRaw === undefined || openRaw === null;
-      let rendered = (loc.rendered || '').trim()
-        .replace(/&amp;/g,'&').replace(/&ndash;/g,'–').replace(/&#8211;/g,'–')
-        .replace(/<[^>]+>/g,'').trim();
-      const timesHours = loc.times?.hours || [];
-      if (isOpen && (!rendered || rendered.toLowerCase() === 'closed') && timesHours.length) {
-        const h = timesHours[0];
-        if (h.from && h.to) rendered = `${h.from} - ${h.to}`;
-      }
-      bulkMap[loc.name] = { lid: loc.lid, isOpen, isUnknown, rendered, timesHours };
-    }
+    const locations = LIBRARIES.map(lib => {
+      // Find matching row by key substring match against scraped row names
+      const matchKey = Object.keys(scraped).find(k => k.toLowerCase().includes(lib.key.toLowerCase()));
+      const hoursText = matchKey ? scraped[matchKey] : '';
+      const isClosed = !hoursText || hoursText.toLowerCase() === 'closed' || hoursText === '–' || hoursText === '-';
+      const isOpen = !isClosed;
 
-    // For each known library, use bulk data if name matches, else fetch individually by lid
-    const locations = await Promise.all(LIBRARIES.map(async lib => {
-      // Try name match first (most reliable)
-      const bulk = bulkMap[lib.name];
-      if (bulk) {
-        const closedToday = bulk.isUnknown ? null : !bulk.isOpen;
-        return {
-          ...lib,
-          lid: bulk.lid || lib.lid,
-          open: bulk.isUnknown ? null : bulk.isOpen,
-          rendered: (bulk.isOpen && bulk.rendered.toLowerCase() !== 'closed') ? bulk.rendered : '',
-          closedToday,
-        };
+      // Normalize hours string: keep first time range (some cells have complex text)
+      // e.g. "8:30am – 11pm" or "8am-4pm (early closure due to...)" → "8:30am – 11pm"
+      let rendered = hoursText;
+      if (rendered) {
+        // Strip parenthetical notes
+        rendered = rendered.replace(/\(.*?\)/g,'').trim();
+        // Take just the first time segment if multiple (split on semicolons)
+        rendered = rendered.split(';')[0].trim();
       }
-      // Fall back to individual lid fetch
-      return fetchOneLibrary(lib).catch(err => ({ ...lib, open: null, rendered: '', closedToday: null, error: err.message }));
-    }));
+      if (isClosed) rendered = '';
+
+      return {
+        name: lib.name,
+        addr: lib.addr,
+        lat: lib.lat,
+        lng: lib.lng,
+        url: lib.url,
+        open: isOpen,
+        rendered,
+        closedToday: isClosed,
+      };
+    });
 
     const data = { date: today, locations };
     writeCache(f, { date: today, data });
