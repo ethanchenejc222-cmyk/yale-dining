@@ -83,7 +83,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 /* Hall cards */
 .hcard{background:var(--card);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);animation:su .28s ease forwards;opacity:0;transform:translateY(6px)}
 @keyframes su{to{opacity:1;transform:none}}
-.hcard.closed-hall{opacity:.5}
+.hcard.closed-hall{opacity:.45!important}
 .hhead{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
 .hname-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .hname{font-size:15px;font-weight:600}
@@ -1591,8 +1591,9 @@ function render(){
     // Today's hours for this hall
     const todayHours=getHallHoursToday(hall);
 
-    // Auto-open first fav only
-    const isFirstOpen=isFav&&!firstOpenRendered;
+    // Auto-open: first fav, OR first alt hall if all favs closed
+    const isAlt=!isFav&&!favSet.has(slug);
+    const isFirstOpen=(!firstOpenRendered)&&(isFav||(isAlt&&allFavsClosed));
     if(isFirstOpen) firstOpenRendered=true;
     const autoOpen=isFirstOpen;
     const cardDelay=visIdx*30;
@@ -1775,14 +1776,18 @@ function parseLibClose(rendered){
 }
 
 function libOpenStatus(lib){
-  if(lib.open===null||lib.open===undefined) return {open:null,text:'See website'};
-  if(lib.closedToday||!lib.open) return {open:false,text:'Closed today'};
-  // Try rendered first, then timesHours
   let rendered=lib.rendered||'';
-  if(!rendered && lib.timesHours?.length){
+  if(!rendered&&lib.timesHours?.length){
     const h=lib.timesHours[0];
     if(h.from&&h.to) rendered=`${h.from} - ${h.to}`;
   }
+  // If we have no open signal at all
+  if(lib.open===null||lib.open===undefined){
+    // Still try to show hours string if we have one
+    if(rendered&&rendered.toLowerCase()!=='closed') return {open:null,text:'Hours vary',hours:rendered};
+    return {open:null,text:'See website'};
+  }
+  if(lib.closedToday||!lib.open) return {open:false,text:'Closed today'};
   if(!rendered) return {open:true,text:'Open today'};
   const closeMin=parseLibClose(rendered);
   if(closeMin>0){
@@ -1846,16 +1851,14 @@ async function renderLibraries(){
     const status=libOpenStatus(lib);
     const isClosed=status.open===false;
     const isUnknown=status.open===null;
-    const dotCls=isClosed?'dot-closed':status.soon?'dot-soon':isUnknown?'dot-closed':'dot-open';
+    const dotCls=isClosed?'dot-closed':status.soon?'dot-soon':isUnknown?'':'dot-open';
     const dist=libDist(lib);
     const distStr=dist!=null?` <span style="font-size:11px;color:var(--t3);font-weight:400">${fmtDist(dist)}</span>`:'';
     const mapsQ=encodeURIComponent(lib.name+', New Haven CT');
     const mapsUrl=lib.lat&&lib.lng?`https://maps.apple.com/?ll=${lib.lat},${lib.lng}&q=${mapsQ}`:`https://maps.apple.com/?q=${mapsQ}`;
-    const subs=[];  // reserved for future use if LibCal returns sub-rooms
 
-    // Build hours display string
-    let hoursStr=lib.rendered||'';
-    if(!hoursStr&&lib.timesHours?.length){const h=lib.timesHours[0];if(h.from&&h.to)hoursStr=`${h.from} – ${h.to}`;}
+    // Best hours string: from status (which already resolved timesHours) or lib.rendered
+    const hoursStr=status.hours||lib.rendered||'';
 
     html+=`<div class="map-hall-card${isClosed?' map-hall-closed':''}">
       <div style="flex:1;min-width:0">
@@ -1863,7 +1866,7 @@ async function renderLibraries(){
           <a href="${lib.url}" target="_blank" style="color:inherit;text-decoration:none">${lib.name}</a>${distStr}
         </div>
         <div class="map-hall-status">
-          <span class="hstatus-dot ${dotCls}"></span>
+          ${dotCls?`<span class="hstatus-dot ${dotCls}"></span>`:''}
           <span>${status.text}</span>
           ${hoursStr&&!isClosed?`<span style="color:var(--t3);margin-left:4px">· ${hoursStr}</span>`:''}
         </div>
